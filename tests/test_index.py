@@ -19,7 +19,8 @@ def test_collect(parser: exman.ExParser):
 def test_list_in_yaml(parser: exman.ExParser):
     parser.add_argument('--list', nargs=2, type=int, default=[1, 3])
     parser.parse_args([])
-    parser.parse_args('--list 1 4'.split())
+    namespace = parser.parse_args('--list 1 4'.split())
+    assert isinstance(namespace.list, list)
     index = exman.Index(parser.root)
     assert isinstance(index.info.list[0], list)
     assert isinstance(index.info.list[0][0], int)

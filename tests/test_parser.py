@@ -10,7 +10,7 @@ def test_dirs(parser: exman.ExParser):
     assert args.root.name.startswith('1'.zfill(parser.zfill) + '-')
     assert parser.runs.exists()
     assert parser.index.exists()
-    assert (parser.index / (args.root.name + exman.parser.PARAMS_FILE.split('.')[-1])).exists()
+    assert (parser.index / (args.root.name + '.' + exman.parser.EXT)).exists()
 
 
 def test_num(parser: exman.ExParser):
