@@ -17,16 +17,16 @@ to iterate over folder with results and apply the same function to it.
 ## Main Features
 Simple drop in replacement of standard `argparse.ArgumentParser`
 ```python
+#file: main.py
 import exman
-import pathlib
 
-parser = exman.ExParser(root=exman.simpleroot(__file__))  # root = ./exman
+parser = exman.ExParser(root=exman.simpleroot(__file__))  # `root = ./exman` relative to the main file
 parser.add_argument(...)
 ```
 
 You then just add arguments as you did before without any change.
 
-In command line runs will look also the same
+In command line runs will look also the same:
 
 ```
 python main.py --param1 foo --param2 bar
@@ -38,4 +38,13 @@ fly. For quick look or search there are symlinks in the `index` folder e.g. `roo
 Since a lot of experiments are created and debugging is sometimes needed, you might want not to create debug
 experiments in `runs` folder. For that case you just add `--tmp` flag and new filed will be written to
 `root/tmp/<name-of-experiment>` folder. That is convenient as you both do not loose important info about experiment and
-results and can restore the symlinks in index by hand if needed.
+results and can restore these symlinks in index by hand if needed.
+
+## Rerunning experiment
+If you want to reproduce an experiment, you can provide source configuration file in yaml format. For example:
+
+```bash
+python main.py --config root/index/<name-of-experiment-to-reproduce>.yaml
+```
+
+All the values will be restored from the previous run.
