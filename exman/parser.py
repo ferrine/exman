@@ -7,6 +7,7 @@ import yaml.representer
 import os
 import functools
 import itertools
+import warnings
 __all__ = [
     'ExParser',
     'simpleroot'
@@ -64,14 +65,18 @@ class Mark(argparse.Action):
             raise argparse.ArgumentError('{} key is not allowed'.format(dest))
         if not selected:
             raise argparse.ArgumentError('Empty list of runs to mark')
-        selected = list(map(int, selected))
+        selected = set(map(int, selected))
         dest = parser.marked / dest
         for run in parser.index.iterdir():
-            if int(run.name.split('-', 1)[0]) in selected:
+            ind = int(run.name.split('-', 1)[0])
+            if ind in selected:
                 if not dest.exists():
                     dest.mkdir()
                 (dest / run.name).symlink_to(run)
+                selected.remove(ind)
                 print('Created symlink from', dest / run.name, '->', run)
+        if selected:
+            warnings.warn('runs {} were not found'.format(selected), category=RuntimeWarning)
         parser.exit(0)
 
 
@@ -129,13 +134,23 @@ class ParserWithRoot(configargparse.ArgumentParser):
 
 class ExParser(ParserWithRoot):
     """
-    root +- runs +- 000001-2018-06-27-14-36-21/params.yaml ...
-         |       |- 000002-2018-06-27-14-36-23/params.yaml ...
-         |       |- xxxxxx-YYYY-mm-dd-HH-MM-SS/params.yaml ...
-         |
-         |- index +- 000001-2018-06-27-14-36-21.yaml (symlink)
-                  |- 000002-2018-06-27-14-36-23.yaml
-                  |- xxxxxx-YYYY-mm-dd-HH-MM-SS.yaml
+    Parser responsible for creating the following structure of experiments
+    ```
+    root
+    |-- runs
+    |   `-- xxxxxx-YYYY-mm-dd-HH-MM-SS
+    |       |-- params.yaml
+    |       `-- ...
+    |-- index
+    |   `-- xxxxxx-YYYY-mm-dd-HH-MM-SS.yaml (symlink)
+    |-- marked
+    |   `-- <mark>
+    |       `-- xxxxxx-YYYY-mm-dd-HH-MM-SS.yaml (symlink)
+    `-- tmp
+        `-- xxxxxx-YYYY-mm-dd-HH-MM-SS
+            |-- params.yaml
+            `-- ...
+    ```
     """
     def __init__(self, *args, root=None, zfill=6,
                  args_for_setting_config_path=('--config', ),

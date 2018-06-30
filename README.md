@@ -40,6 +40,24 @@ experiments in `runs` folder. For that case you just add `--tmp` flag and new fi
 `root/tmp/<name-of-experiment>` folder. That is convenient as you both do not loose important info about experiment and
 results and can restore these symlinks in index by hand if needed.
 
+```
+root
+|-- runs
+|   `-- xxxxxx-YYYY-mm-dd-HH-MM-SS
+|       |-- params.yaml
+|       `-- ...
+|-- index
+|   `-- xxxxxx-YYYY-mm-dd-HH-MM-SS.yaml (symlink)
+|-- marked
+|   `-- <mark>
+|       `-- xxxxxx-YYYY-mm-dd-HH-MM-SS.yaml (symlink)
+`-- tmp
+    `-- xxxxxx-YYYY-mm-dd-HH-MM-SS
+        |-- params.yaml
+        `-- ...
+```
+
+
 ## Rerunning experiment
 If you want to reproduce an experiment, you can provide source configuration file in yaml format. For example:
 
