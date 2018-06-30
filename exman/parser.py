@@ -26,6 +26,10 @@ RESERVED_DIRECTORIES = {
 }
 
 
+def yaml_file(name):
+    return name + '.' + EXT
+
+
 def simpleroot(__file__):
     return pathlib.Path(os.path.dirname(os.path.abspath(__file__)))/FOLDER_DEFAULT
 
@@ -62,17 +66,17 @@ class Mark(argparse.Action):
     def __call__(self, parser: 'ParserWithRoot', namespace, values, option_string=None):
         dest, *selected = values
         if dest in RESERVED_DIRECTORIES:
-            raise argparse.ArgumentError('{} key is not allowed'.format(dest))
+            raise argparse.ArgumentError('"{}" mark is not allowed'.format(dest))
         if not selected:
             raise argparse.ArgumentError('Empty list of runs to mark')
         selected = set(map(int, selected))
         dest = parser.marked / dest
-        for run in parser.index.iterdir():
+        for run in parser.runs.iterdir():
             ind = int(run.name.split('-', 1)[0])
             if ind in selected:
                 if not dest.exists():
                     dest.mkdir()
-                (dest / run.name).symlink_to(run)
+                (dest / yaml_file(run.name)).symlink_to(run / yaml_file('params'))
                 selected.remove(ind)
                 print('Created symlink from', dest / run.name, '->', run)
         if selected:
@@ -183,8 +187,9 @@ class ExParser(ParserWithRoot):
         with yaml_params_path.open('a') as f:
             yaml.dump(args.__dict__, f, default_flow_style=False)
             print("time: '{}'".format(time.strftime(TIME_FORMAT)), file=f)
+            print("id:", int(num), file=f)
         print(yaml_params_path.read_text())
-        symlink = self.index / (name + '.' + EXT)
+        symlink = self.index / yaml_file(name)
         if not args.tmp:
             symlink.symlink_to(yaml_params_path)
             print('Created symlink from', symlink, '->', yaml_params_path)

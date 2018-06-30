@@ -10,7 +10,7 @@ def test_dirs(parser: exman.ExParser):
     assert args.root.name.startswith('1'.zfill(parser.zfill) + '-')
     assert parser.runs.exists()
     assert parser.index.exists()
-    assert (parser.index / (args.root.name + '.' + exman.parser.EXT)).exists()
+    assert (parser.index / exman.parser.yaml_file(args.root.name)).exists()
 
 
 def test_num(parser: exman.ExParser):
@@ -29,7 +29,7 @@ def test_params(parser: exman.ExParser):
 
 def test_reuse(parser: exman.ExParser):
     args = parser.parse_args('--arg1=10 --arg2=F'.split())
-    params = args.root / ('params.' + exman.parser.EXT)
+    params = args.root / exman.parser.yaml_file('params')
     args2 = parser.parse_args('--config {}'.format(params).split())
     assert args.arg1 == args2.arg1
     assert args.arg2 == args2.arg2

@@ -35,17 +35,21 @@ converter.register_converter('string', str)
 class Index(object):
     def __init__(self, root):
         self.root = pathlib.Path(root)
-        self.info = self._collect_info()
-
-    @property
-    def runs(self):
-        return self.root / 'runs'
 
     @property
     def index(self):
         return self.root / 'index'
 
-    def _collect_info(self):
+    @property
+    def marked(self):
+        return self.root / 'marked'
+
+    def info(self, source=None):
+        if source is None:
+            source = self.index
+        else:
+            source = self.marked / source
+
         def get_dict(cfg):
             return configargparse.YAMLConfigFileParser().parse(cfg.open('r'))
 
@@ -55,8 +59,9 @@ class Index(object):
                 return col.apply(converter.get_converter(types[0]))
             else:
                 return col
-        dataframe = pd.DataFrame.from_records((get_dict(c) for c in self.index.iterdir()))
-        dataframe = dataframe.apply(lambda s: convert_column(s))
-        return dataframe.assign(root=lambda s: s.root.apply(pathlib.Path))
-
-
+        try:
+            dataframe = pd.DataFrame.from_records((get_dict(c) for c in source.iterdir()))
+            dataframe = dataframe.apply(lambda s: convert_column(s))
+            return dataframe.assign(root=lambda s: s.root.apply(pathlib.Path))
+        except FileNotFoundError as e:
+            raise KeyError(source) from e
