@@ -4,8 +4,12 @@ import pathlib
 import datetime
 import yaml
 import yaml.representer
+import os
+import functools
+import itertools
 __all__ = [
-    'ExParser'
+    'ExParser',
+    'simpleroot'
 ]
 
 
@@ -14,14 +18,27 @@ TIME_FORMAT = '%Y-%m-%dT%H:%M:%S'
 DIR_FORMAT = '{num}-{time}'
 EXT = 'yaml'
 PARAMS_FILE = 'params.'+EXT
+FOLDER_DEFAULT = 'exman'
+RESERVED_DIRECTORIES = {
+    'runs', 'index',
+    'tmp', 'marked'
+}
 
 
-def represent_as_str(self, data):
-    return yaml.representer.Representer.represent_str(self, str(data))
+def simpleroot(__file__):
+    return pathlib.Path(os.path.dirname(os.path.abspath(__file__)))/FOLDER_DEFAULT
 
 
-yaml.add_representer(pathlib.PosixPath, represent_as_str)
-yaml.add_representer(pathlib.WindowsPath, represent_as_str)
+def represent_as_str(self, data, tostr=str):
+    return yaml.representer.Representer.represent_str(self, tostr(data))
+
+
+def register_str_converter(*types, tostr=str):
+    for T in types:
+        yaml.add_representer(T, functools.partial(represent_as_str, tostr=tostr))
+
+
+register_str_converter(pathlib.PosixPath, pathlib.WindowsPath)
 
 
 def str2bool(s):
@@ -43,6 +60,10 @@ class Mark(argparse.Action):
 
     def __call__(self, parser: 'ParserWithRoot', namespace, values, option_string=None):
         dest, *selected = values
+        if dest in RESERVED_DIRECTORIES:
+            raise argparse.ArgumentError('{} key is not allowed'.format(dest))
+        if not selected:
+            raise argparse.ArgumentError('Empty list of runs to mark')
         selected = list(map(int, selected))
         dest = parser.marked / dest
         for run in parser.index.iterdir():
@@ -68,14 +89,9 @@ class ParserWithRoot(configargparse.ArgumentParser):
         self.root = pathlib.Path(root)
         self.zfill = zfill
         self.register('type', bool, str2bool)
-        if not self.runs.exists():
-            self.runs.mkdir()
-        if not self.runs.exists():
-            self.tmp.mkdir()
-        if not self.index.exists():
-            self.index.mkdir()
-        if not self.marked.exists():
-            self.marked.mkdir()
+        for directory in RESERVED_DIRECTORIES:
+            if not getattr(self, directory).exists():
+                getattr(self, directory).mkdir()
 
     @property
     def runs(self):
@@ -95,7 +111,7 @@ class ParserWithRoot(configargparse.ArgumentParser):
 
     def max_ex(self):
         max_num = 0
-        for directory in self.runs.iterdir():
+        for directory in itertools.chain(self.runs.iterdir(), self.tmp.iterdir()):
             num = int(directory.name.split('-', 1)[0])
             if num > max_num:
                 max_num = num
@@ -127,6 +143,7 @@ class ExParser(ParserWithRoot):
         super().__init__(*args, root=root, zfill=zfill,
                          args_for_setting_config_path=args_for_setting_config_path,
                          config_file_parser_class=configargparse.YAMLConfigFileParser,
+                         ignore_unknown_config_file_keys=True,
                          **kwargs)
         self.add_argument('--tmp', action='store_true')
         self.subparsers = self.add_subparsers(title='sub commands', parser_class=ParserWithRoot)

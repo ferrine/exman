@@ -25,3 +25,11 @@ def test_params(parser: exman.ExParser):
     args = parser.parse_args('--arg1=10 --arg2=F'.split())
     assert args.arg1 == 10
     assert args.arg2 is False
+
+
+def test_reuse(parser: exman.ExParser):
+    args = parser.parse_args('--arg1=10 --arg2=F'.split())
+    params = args.root / ('params.' + exman.parser.EXT)
+    args2 = parser.parse_args('--config {}'.format(params).split())
+    assert args.arg1 == args2.arg1
+    assert args.arg2 == args2.arg2
