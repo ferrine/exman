@@ -5,7 +5,7 @@ import strconv
 import json
 import functools
 import datetime
-from .parser import str2bool, TIME_FORMAT
+from . import parser
 __all__ = [
     'Index'
 ]
@@ -23,9 +23,9 @@ def only_value_error(conv):
 
 converter = strconv.Strconv()
 
-converter.register_converter('bool', only_value_error(str2bool))
+converter.register_converter('bool', only_value_error(parser.str2bool))
 converter.register_converter('time', only_value_error(
-    lambda time: datetime.datetime.strptime(time, TIME_FORMAT)
+    lambda time: datetime.datetime.strptime(time, parser.TIME_FORMAT)
 ))
 converter.register_converter('json', only_value_error(json.loads))
 # last resort

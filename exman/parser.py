@@ -10,7 +10,7 @@ import itertools
 import warnings
 __all__ = [
     'ExParser',
-    'simpleroot'
+    'simpleroot',
 ]
 
 
