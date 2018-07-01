@@ -39,8 +39,9 @@ def test_num(parser: exman.ExParser):
 def test_reuse(root, type, nargs, py_value, str_value):
     parser = exman.ExParser(root=root)
     parser.add_argument('--param', nargs=nargs, type=type)
-    args = parser.parse_args('--param '+str_value)
-    assert args.param == py_value
-    params = args.root / exman.parser.yaml_file('params')
+    args1 = parser.parse_args('--param '+str_value)
+    assert args1.param == py_value
+    params = args1.root / exman.parser.yaml_file('params')
     args2 = parser.parse_args('--config {}'.format(params).split())
     assert args2.param == py_value
+    assert args1.root != args2.root

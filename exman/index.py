@@ -60,8 +60,11 @@ class Index(object):
             else:
                 return col
         try:
-            dataframe = pd.DataFrame.from_records((get_dict(c) for c in source.iterdir()))
-            dataframe = dataframe.apply(lambda s: convert_column(s))
-            return dataframe.assign(root=lambda s: s.root.apply(pathlib.Path))
+            return (pd.DataFrame
+                    .from_records((get_dict(c) for c in source.iterdir()))
+                    .apply(lambda s: convert_column(s))
+                    .sort_values('id')
+                    .assign(root=lambda s: s.root.apply(self.root.__truediv__))
+                    )
         except FileNotFoundError as e:
             raise KeyError(source) from e

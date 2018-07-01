@@ -7,13 +7,14 @@ import exman
 
 
 def test_collect(parser: exman.ExParser):
-    parser.parse_args('--arg1=10 --arg2=F'.split())
+    args = parser.parse_args('--arg1=10 --arg2=F'.split())
     parser.parse_args('--arg1=9 --arg2=t'.split())
     info = exman.Index(parser.root).info()
     assert len(info) == 2
     assert str(info.dtypes.arg2) == 'bool'
     assert str(info.dtypes.arg1) == 'int64'
     assert isinstance(info.root[0], pathlib.Path)
+    assert info.root[0] == args.root
     assert str(info.dtypes.time) == 'datetime64[ns]'
 
 

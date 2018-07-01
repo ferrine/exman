@@ -180,14 +180,18 @@ class ExParser(ParserWithRoot):
         num = self.next_ex_str()
         name = DIR_FORMAT.format(num=num, time=time.strftime(TIME_FORMAT_DIR))
         if args.tmp:
-            exroot = self.tmp / name
+            absroot = self.tmp / name
+            relroot = pathlib.Path('tmp') / name
         else:
-            exroot = self.runs / name
-        exroot.mkdir()
-        args.root = exroot
+            absroot = self.runs / name
+            relroot = pathlib.Path('runs') / name
+        absroot.mkdir()
+        args.root = absroot
         yaml_params_path = args.root / PARAMS_FILE
         with yaml_params_path.open('a') as f:
-            yaml.dump(args.__dict__, f, default_flow_style=False)
+            dumpd = args.__dict__.copy()
+            dumpd['root'] = relroot
+            yaml.dump(dumpd, f, default_flow_style=False)
             print("time: '{}'".format(time.strftime(TIME_FORMAT)), file=f)
             print("id:", int(num), file=f)
         print(yaml_params_path.read_text())
