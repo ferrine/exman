@@ -1,5 +1,5 @@
 import exman
-
+import pytest
 # fixtures:
 #   parser: exman.ExParser
 
@@ -21,15 +21,26 @@ def test_num(parser: exman.ExParser):
     assert parser.next_ex() == 2
 
 
-def test_params(parser: exman.ExParser):
-    args = parser.parse_args('--arg1=10 --arg2=F'.split())
-    assert args.arg1 == 10
-    assert args.arg2 is False
-
-
-def test_reuse(parser: exman.ExParser):
-    args = parser.parse_args('--arg1=10 --arg2=F'.split())
+@pytest.mark.parametrize(
+    'type,nargs,py_value,str_value',
+    [
+        (str, None, 'example', 'example'),
+        (str, '+', ['example', 'example'], 'example example'),
+        (str, None, '1', '1'),
+        (str, '+', ['1', '2'], '1 2'),
+        (int, None, 1, '1'),
+        (int, '+', [1, 2], '1 2'),
+        (float, None, 1.1, '1.1'),
+        (float, '+', [1., 2.1], '1 2.1'),
+        (bool, None, True, '1'),
+        (bool, '+', [True, False], 'T F'),
+    ]
+)
+def test_reuse(root, type, nargs, py_value, str_value):
+    parser = exman.ExParser(root=root)
+    parser.add_argument('--param', nargs=nargs, type=type)
+    args = parser.parse_args('--param '+str_value)
+    assert args.param == py_value
     params = args.root / exman.parser.yaml_file('params')
     args2 = parser.parse_args('--config {}'.format(params).split())
-    assert args.arg1 == args2.arg1
-    assert args.arg2 == args2.arg2
+    assert args2.param == py_value
