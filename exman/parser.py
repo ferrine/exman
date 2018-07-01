@@ -67,6 +67,8 @@ class Mark(argparse.Action):
         dest, *selected = values
         if dest in RESERVED_DIRECTORIES:
             raise argparse.ArgumentError('"{}" mark is not allowed'.format(dest))
+        if dest.isnumeric():
+            raise argparse.ArgumentError('Mark "{}" should not be numeric'.format(dest))
         if not selected:
             raise argparse.ArgumentError('Empty list of runs to mark')
         selected = set(map(int, selected))

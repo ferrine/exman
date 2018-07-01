@@ -66,3 +66,37 @@ python main.py --config root/index/<name-of-experiment-to-reproduce>.yaml
 ```
 
 All the values will be restored from the previous run.
+
+## Loading Pandas
+Pandas is a great tool to work with table data. Experiments are the same data and can be loaded in python. So all you
+need is to run batch of experiments and open a Jupyter notebook.
+
+```python
+import exman
+index = exman.Index(exman.simpleroot('/path/to/main.py'))
+experiments = index.info()
+```
+
+Table has columns `time (datetime64[ns])` of experiment and `root (pathlib.Path)` path to results. Moreover this
+table has all other parameters of the experiment. You later can filter/order the results according to them and have
+easy-breezy access to results folder and it's content.
+
+```python
+for i, ex in experiments.iterrows():
+    # do some actions
+    # use ex.param for parameters
+    # ex.root / 'plot.png' for file paths
+```
+
+## Marking experiments
+If you like some experiments you can mark them for easier later access.
+
+```
+python main.py mark <key> <#ex1> [<#ex2>, <#ex3>, ...]
+```
+
+and later in Jupyter
+
+```python
+experiments = index.info('<key>')
+```
