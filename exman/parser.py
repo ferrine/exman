@@ -78,9 +78,12 @@ class Mark(argparse.Action):
             if ind in selected:
                 if not dest.exists():
                     dest.mkdir()
-                (dest / yaml_file(run.name)).symlink_to(run / yaml_file('params'))
+                rel_param_symlink = pathlib.Path('..', '..', 'runs', run.name, PARAMS_FILE)
+                (dest / yaml_file(run.name)).symlink_to(
+                    rel_param_symlink
+                )
                 selected.remove(ind)
-                print('Created symlink from', dest / run.name, '->', run)
+                print('Created symlink from', dest / run.name, '->', rel_param_symlink)
         if selected:
             warnings.warn('runs {} were not found'.format(selected), category=RuntimeWarning)
         parser.exit(0)
@@ -188,6 +191,7 @@ class ExParser(ParserWithRoot):
         absroot.mkdir()
         args.root = absroot
         yaml_params_path = args.root / PARAMS_FILE
+        rel_yaml_params_path = pathlib.Path('..', 'runs', name, PARAMS_FILE)
         with yaml_params_path.open('a') as f:
             dumpd = args.__dict__.copy()
             dumpd['root'] = relroot
@@ -197,6 +201,6 @@ class ExParser(ParserWithRoot):
         print(yaml_params_path.read_text())
         symlink = self.index / yaml_file(name)
         if not args.tmp:
-            symlink.symlink_to(yaml_params_path)
-            print('Created symlink from', symlink, '->', yaml_params_path)
+            symlink.symlink_to(rel_yaml_params_path)
+            print('Created symlink from', symlink, '->', rel_yaml_params_path)
         return args, argv
