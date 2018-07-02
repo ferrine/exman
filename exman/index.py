@@ -66,4 +66,4 @@ class Index(object):
                     .sort_values('time')
                     .assign(root=lambda df: df.root.apply(self.root.__truediv__)))
         except FileNotFoundError as e:
-            raise KeyError(source) from e
+            raise KeyError(source.name) from e
