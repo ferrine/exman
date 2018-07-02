@@ -92,7 +92,7 @@ for i, ex in experiments.iterrows():
 If you like some experiments you can mark them for easier later access.
 
 ```
-python main.py mark <key> <#ex1> [<#ex2>, <#ex3>, ...]
+python main.py mark <key> <#ex1> [<#ex2> <#ex3> ...]
 ```
 
 and later in Jupyter
