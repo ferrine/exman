@@ -19,6 +19,9 @@ def test_num(parser: exman.ExParser):
     parser.parse_args([])
     assert parser.num_ex() == 1
     assert parser.next_ex() == 2
+    parser.parse_args(['--tmp'])
+    assert parser.num_ex() == 1
+    assert parser.next_ex() == 3
 
 
 @pytest.mark.parametrize(
