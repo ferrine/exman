@@ -16,7 +16,7 @@ __all__ = [
 
 TIME_FORMAT_DIR = '%Y-%m-%d-%H-%M-%S'
 TIME_FORMAT = '%Y-%m-%dT%H:%M:%S'
-DIR_FORMAT = '{num}-{time}'
+DIR_FORMAT = '{num}-{time}-pid{pid}'
 EXT = 'yaml'
 PARAMS_FILE = 'params.'+EXT
 FOLDER_DEFAULT = 'exman'
@@ -147,16 +147,16 @@ class ExParser(ParserWithRoot):
     ```
     root
     |-- runs
-    |   `-- xxxxxx-YYYY-mm-dd-HH-MM-SS
+    |   `-- xxxxxx-YYYY-mm-dd-HH-MM-SS-pidyyyy
     |       |-- params.yaml
     |       `-- ...
     |-- index
-    |   `-- xxxxxx-YYYY-mm-dd-HH-MM-SS.yaml (symlink)
+    |   `-- xxxxxx-YYYY-mm-dd-HH-MM-SS-pidyyyy.yaml (symlink)
     |-- marked
     |   `-- <mark>
-    |       `-- xxxxxx-YYYY-mm-dd-HH-MM-SS.yaml (symlink)
+    |       `-- xxxxxx-YYYY-mm-dd-HH-MM-SS-pidyyyy.yaml (symlink)
     `-- tmp
-        `-- xxxxxx-YYYY-mm-dd-HH-MM-SS
+        `-- xxxxxx-YYYY-mm-dd-HH-MM-SS-pidyyyy
             |-- params.yaml
             `-- ...
     ```
@@ -181,7 +181,7 @@ class ExParser(ParserWithRoot):
         args, argv = super().parse_known_args(*args, **kwargs)
         time = datetime.datetime.now()
         num = self.next_ex_str()
-        name = DIR_FORMAT.format(num=num, time=time.strftime(TIME_FORMAT_DIR))
+        name = DIR_FORMAT.format(num=num, time=time.strftime(TIME_FORMAT_DIR), pid=os.getpid())
         if args.tmp:
             absroot = self.tmp / name
             relroot = pathlib.Path('tmp') / name

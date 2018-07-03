@@ -43,16 +43,16 @@ results and can restore these symlinks in index by hand if needed.
 ```
 root
 |-- runs
-|   `-- xxxxxx-YYYY-mm-dd-HH-MM-SS
+|   `-- xxxxxx-YYYY-mm-dd-HH-MM-SS-pidyyyy
 |       |-- params.yaml
 |       `-- ...
 |-- index
-|   `-- xxxxxx-YYYY-mm-dd-HH-MM-SS.yaml (symlink)
+|   `-- xxxxxx-YYYY-mm-dd-HH-MM-SS-pidyyyy.yaml (symlink)
 |-- marked
 |   `-- <mark>
-|       `-- xxxxxx-YYYY-mm-dd-HH-MM-SS.yaml (symlink)
+|       `-- xxxxxx-YYYY-mm-dd-HH-MM-SS-pidyyyy.yaml (symlink)
 `-- tmp
-    `-- xxxxxx-YYYY-mm-dd-HH-MM-SS
+    `-- xxxxxx-YYYY-mm-dd-HH-MM-SS-pidyyyy
         |-- params.yaml
         `-- ...
 ```
