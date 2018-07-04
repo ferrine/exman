@@ -65,6 +65,6 @@ class Index(object):
                     .apply(lambda s: convert_column(s))
                     .sort_values('id')
                     .assign(root=lambda df: df.root.apply(self.root.__truediv__))
-                    .reset_index())
+                    .reset_index(drop=True))
         except FileNotFoundError as e:
             raise KeyError(source.name) from e
