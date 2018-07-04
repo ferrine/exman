@@ -1,12 +1,13 @@
 import pytest
 import tempfile
+import pathlib
 import exman
 
 
 @pytest.fixture
 def root():
     with tempfile.TemporaryDirectory() as tmpdir:
-        yield tmpdir
+        yield pathlib.Path(tmpdir)
 
 
 @pytest.fixture

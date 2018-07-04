@@ -8,6 +8,7 @@ import os
 import functools
 import itertools
 import warnings
+from filelock import FileLock
 __all__ = [
     'ExParser',
     'simpleroot',
@@ -16,7 +17,7 @@ __all__ = [
 
 TIME_FORMAT_DIR = '%Y-%m-%d-%H-%M-%S'
 TIME_FORMAT = '%Y-%m-%dT%H:%M:%S'
-DIR_FORMAT = '{num}-{time}-pid{pid}'
+DIR_FORMAT = '{num}-{time}'
 EXT = 'yaml'
 PARAMS_FILE = 'params.'+EXT
 FOLDER_DEFAULT = 'exman'
@@ -76,8 +77,7 @@ class Mark(argparse.Action):
         for run in parser.runs.iterdir():
             ind = int(run.name.split('-', 1)[0])
             if ind in selected:
-                if not dest.exists():
-                    dest.mkdir()
+                dest.mkdir(exist_ok=True)
                 rel_param_symlink = pathlib.Path('..', '..', 'runs', run.name, PARAMS_FILE)
                 (dest / yaml_file(run.name)).symlink_to(
                     rel_param_symlink
@@ -104,8 +104,8 @@ class ParserWithRoot(configargparse.ArgumentParser):
         self.zfill = zfill
         self.register('type', bool, str2bool)
         for directory in RESERVED_DIRECTORIES:
-            if not getattr(self, directory).exists():
-                getattr(self, directory).mkdir()
+            getattr(self, directory).mkdir(exist_ok=True)
+        self.lock = FileLock(str(self.root/'lock'))
 
     @property
     def runs(self):
@@ -147,16 +147,16 @@ class ExParser(ParserWithRoot):
     ```
     root
     |-- runs
-    |   `-- xxxxxx-YYYY-mm-dd-HH-MM-SS-pidyyyy
+    |   `-- xxxxxx-YYYY-mm-dd-HH-MM-SS
     |       |-- params.yaml
     |       `-- ...
     |-- index
-    |   `-- xxxxxx-YYYY-mm-dd-HH-MM-SS-pidyyyy.yaml (symlink)
+    |   `-- xxxxxx-YYYY-mm-dd-HH-MM-SS.yaml (symlink)
     |-- marked
     |   `-- <mark>
-    |       `-- xxxxxx-YYYY-mm-dd-HH-MM-SS-pidyyyy.yaml (symlink)
+    |       `-- xxxxxx-YYYY-mm-dd-HH-MM-SS.yaml (symlink)
     `-- tmp
-        `-- xxxxxx-YYYY-mm-dd-HH-MM-SS-pidyyyy
+        `-- xxxxxx-YYYY-mm-dd-HH-MM-SS
             |-- params.yaml
             `-- ...
     ```
@@ -179,16 +179,18 @@ class ExParser(ParserWithRoot):
 
     def parse_known_args(self, *args, **kwargs):
         args, argv = super().parse_known_args(*args, **kwargs)
-        time = datetime.datetime.now()
-        num = self.next_ex_str()
-        name = DIR_FORMAT.format(num=num, time=time.strftime(TIME_FORMAT_DIR), pid=os.getpid())
-        if args.tmp:
-            absroot = self.tmp / name
-            relroot = pathlib.Path('tmp') / name
-        else:
-            absroot = self.runs / name
-            relroot = pathlib.Path('runs') / name
-        absroot.mkdir()
+        with self.lock:  # different processes can make it same time, this is needed to avoid collision
+            time = datetime.datetime.now()
+            num = self.next_ex_str()
+            name = DIR_FORMAT.format(num=num, time=time.strftime(TIME_FORMAT_DIR))
+            if args.tmp:
+                absroot = self.tmp / name
+                relroot = pathlib.Path('tmp') / name
+            else:
+                absroot = self.runs / name
+                relroot = pathlib.Path('runs') / name
+            # this process now safely owns root directory
+            absroot.mkdir()
         args.root = absroot
         yaml_params_path = args.root / PARAMS_FILE
         rel_yaml_params_path = pathlib.Path('..', 'runs', name, PARAMS_FILE)

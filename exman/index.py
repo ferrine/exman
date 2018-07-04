@@ -63,7 +63,7 @@ class Index(object):
             return (pd.DataFrame
                     .from_records((get_dict(c) for c in source.iterdir()))
                     .apply(lambda s: convert_column(s))
-                    .sort_values('time')
+                    .sort_values('id')
                     .assign(root=lambda df: df.root.apply(self.root.__truediv__)))
         except FileNotFoundError as e:
             raise KeyError(source.name) from e
