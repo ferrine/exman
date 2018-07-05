@@ -177,20 +177,28 @@ class ExParser(ParserWithRoot):
         mark = self.subparsers.add_parser('mark', root=self.root)
         mark.add_argument('runs', action=Mark,)
 
+    def _initialize_dir(self, tmp):
+        try:
+            with self.lock:  # different processes can make it same time, this is needed to avoid collision
+                time = datetime.datetime.now()
+                num = self.next_ex_str()
+                name = DIR_FORMAT.format(num=num, time=time.strftime(TIME_FORMAT_DIR))
+                if tmp:
+                    absroot = self.tmp / name
+                    relroot = pathlib.Path('tmp') / name
+                else:
+                    absroot = self.runs / name
+                    relroot = pathlib.Path('runs') / name
+                # this process now safely owns root directory
+                # raises FileExistsError on fail
+                absroot.mkdir()
+        except FileExistsError:  # shit still happens
+            return self._initialize_dir(tmp)
+        return absroot, relroot, name, time, num
+
     def parse_known_args(self, *args, **kwargs):
         args, argv = super().parse_known_args(*args, **kwargs)
-        with self.lock:  # different processes can make it same time, this is needed to avoid collision
-            time = datetime.datetime.now()
-            num = self.next_ex_str()
-            name = DIR_FORMAT.format(num=num, time=time.strftime(TIME_FORMAT_DIR))
-            if args.tmp:
-                absroot = self.tmp / name
-                relroot = pathlib.Path('tmp') / name
-            else:
-                absroot = self.runs / name
-                relroot = pathlib.Path('runs') / name
-            # this process now safely owns root directory
-            absroot.mkdir()
+        absroot, relroot, name, time, num = self._initialize_dir(args.tmp)
         args.root = absroot
         yaml_params_path = args.root / PARAMS_FILE
         rel_yaml_params_path = pathlib.Path('..', 'runs', name, PARAMS_FILE)
