@@ -19,6 +19,7 @@ if __name__ == '__main__':
         version=get_version(),
         python_requires='>=3.5',
         author='Max Kochurov',
+        scripts=['bin/exman'],
         author_email='maxim.v.kochurov@gmail.com',
         install_requires=open('requirements.txt').readlines(),
         tests_require=open('requirements-dev.txt').readlines()

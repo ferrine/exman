@@ -1,6 +1,6 @@
 import exman
 import pytest
-import os
+
 # fixtures:
 #   parser: exman.ExParser
 
@@ -49,13 +49,3 @@ def test_reuse(root, type, nargs, py_value, str_value):
     args2 = parser.parse_args('--config {}'.format(params).split())
     assert args2.param == py_value
     assert args1.root != args2.root
-
-
-def test_multiprocessing(root):
-    prog = """
-import exman
-parser = exman.ExParser(root={root!r})
-parser.parse_args()
-""".format(root=str(root))
-    (root / 'prog.py').write_text(prog)
-    os.system(' & '.join([' '.join(['python', str(root/'prog.py')])] * 100))

@@ -92,11 +92,21 @@ for i, ex in experiments.iterrows():
 If you like some experiments you can mark them for easier later access.
 
 ```
-python main.py mark <key> <#ex1> [<#ex2> <#ex3> ...]
+cd root_of_exman_dir
+exman mark <key> <#ex1> [<#ex2> <#ex3> ...]
 ```
 
 and later in Jupyter
 
 ```python
 experiments = index.info('<key>')
+```
+
+## Deleting experiments
+```
+cd root_of_exman_dir
+# delete only index
+exman delete <#ex1> [<#ex2> <#ex3> ...]
+# delete all files
+exman delete --all <#ex1> [<#ex2> <#ex3> ...]
 ```

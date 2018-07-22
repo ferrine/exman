@@ -1,0 +1,81 @@
+#!/usr/bin/env python3
+import pathlib
+import argparse
+import sys
+import shutil
+import exman
+parser = argparse.ArgumentParser()
+commands = parser.add_subparsers(title='commands', help='Experiment manager CLI')
+
+mark = commands.add_parser('mark')
+
+
+def key_validator(key):
+    if not key.isidentifier():
+        raise argparse.ArgumentError('Mark "{}" should be an identifier'.format(key))
+    if key in exman.parser.RESERVED_DIRECTORIES:
+        raise argparse.ArgumentError('"{}" mark is not allowed'.format(key))
+    return key
+
+
+mark.add_argument('key',
+                  type=key_validator,
+                  help='key for mark')
+
+
+class Mark(argparse.Action):
+    def __init__(self, option_strings, dest=argparse.SUPPRESS, nargs='+', **kwargs):
+        super().__init__(option_strings, dest=dest, nargs=nargs, type=int, **kwargs)
+
+    def __call__(self, parser, namespace, values, option_string=None):
+        selected = set(values)
+        dest = pathlib.Path('marked') / namespace.key
+        for run in pathlib.Path('runs').iterdir():
+            ind = int(run.name.split('-', 1)[0])
+            if ind in selected:
+                dest.mkdir(exist_ok=True)
+                rel_param_symlink = pathlib.Path('..', '..', 'runs', run.name, exman.parser.PARAMS_FILE)
+                (dest / exman.parser.yaml_file(run.name)).symlink_to(
+                    rel_param_symlink
+                )
+                selected.remove(ind)
+                print('Created symlink from', dest / run.name, '->', rel_param_symlink)
+        if selected:
+            sys.stderr.write('warning: runs {} were not found\n'.format(selected))
+        parser.exit(0)
+
+
+mark.add_argument('runs',
+                  help='runs to mark',
+                  action=Mark)
+
+delete = commands.add_parser('delete')
+delete.add_argument('--all', action='store_true', help='Delete all associated files too')
+
+
+class Delete(argparse.Action):
+    def __init__(self, option_strings, dest=argparse.SUPPRESS, nargs='+', **kwargs):
+        super().__init__(option_strings, dest=dest, nargs=nargs, type=int, **kwargs)
+
+    def __call__(self, parser, namespace, values, option_string=None):
+        selected = set(values)
+        for index in pathlib.Path('index').iterdir():
+            ind = int(index.name.split('-', 1)[0])
+            if ind in selected:
+                index.unlink()
+                selected.remove(ind)
+        if namespace.all:
+            for run in pathlib.Path('runs').iterdir():
+                ind = int(run.name.split('-', 1)[0])
+                if ind in selected:
+                    shutil.rmtree(run, ignore_errors=True)
+                    selected.remove(ind)
+        if selected:
+            sys.stderr.write('warning: runs {} were not found\n'.format(selected))
+        parser.exit(0)
+
+
+delete.add_argument('runs',
+                    action=Delete,
+                    help='runs to delete')
+parser.parse_args()

@@ -30,11 +30,11 @@ def test_list_in_yaml(parser: exman.ExParser):
     assert isinstance(info.list[1][0], int)
 
 
-def test_marked(parser: exman.ExParser):
+def test_marked(parser: exman.ExParser, script_runner, root):
     parser.parse_args('--arg1=10 --arg2=F'.split())
     parser.parse_args('--arg1=9 --arg2=t'.split())
-    with pytest.raises(SystemExit):
-        parser.parse_args('mark new 1')
+    run_info = script_runner.run('exman', 'mark', 'new', '1', cwd=root)
+    assert run_info.success
     info = exman.Index(parser.root).info()
     new = exman.Index(parser.root).info('new')
     assert len(info) == 2

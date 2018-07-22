@@ -59,36 +59,6 @@ def str2bool(s):
         raise argparse.ArgumentTypeError(s, 'bool argument should be one of {}'.format(str(true + false)))
 
 
-class Mark(argparse.Action):
-    def __init__(self, option_strings, dest=argparse.SUPPRESS, marked_root=None, nargs='+', **kwargs):
-        self.marked_root = marked_root
-        super().__init__(option_strings, dest=dest, nargs=nargs, type=str, **kwargs)
-
-    def __call__(self, parser: 'ParserWithRoot', namespace, values, option_string=None):
-        dest, *selected = values
-        if dest in RESERVED_DIRECTORIES:
-            raise argparse.ArgumentError('"{}" mark is not allowed'.format(dest))
-        if dest.isnumeric():
-            raise argparse.ArgumentError('Mark "{}" should not be numeric'.format(dest))
-        if not selected:
-            raise argparse.ArgumentError('Empty list of runs to mark')
-        selected = set(map(int, selected))
-        dest = parser.marked / dest
-        for run in parser.runs.iterdir():
-            ind = int(run.name.split('-', 1)[0])
-            if ind in selected:
-                dest.mkdir(exist_ok=True)
-                rel_param_symlink = pathlib.Path('..', '..', 'runs', run.name, PARAMS_FILE)
-                (dest / yaml_file(run.name)).symlink_to(
-                    rel_param_symlink
-                )
-                selected.remove(ind)
-                print('Created symlink from', dest / run.name, '->', rel_param_symlink)
-        if selected:
-            warnings.warn('runs {} were not found'.format(selected), category=RuntimeWarning)
-        parser.exit(0)
-
-
 class ParserWithRoot(configargparse.ArgumentParser):
     def __init__(self, *args, root=None, zfill=6,
                  **kwargs):
@@ -170,12 +140,6 @@ class ExParser(ParserWithRoot):
                          ignore_unknown_config_file_keys=True,
                          **kwargs)
         self.add_argument('--tmp', action='store_true')
-        self.subparsers = self.add_subparsers(title='sub commands', parser_class=ParserWithRoot)
-        self.__init_mark__()
-
-    def __init_mark__(self):
-        mark = self.subparsers.add_parser('mark', root=self.root)
-        mark.add_argument('runs', action=Mark,)
 
     def _initialize_dir(self, tmp):
         try:
