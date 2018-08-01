@@ -47,8 +47,10 @@ class Index(object):
     def info(self, source=None):
         if source is None:
             source = self.index
+            files = source.iterdir()
         else:
             source = self.marked / source
+            files = source.glob('**/*/'+parser.PARAMS_FILE)
 
         def get_dict(cfg):
             return configargparse.YAMLConfigFileParser().parse(cfg.open('r'))
@@ -61,7 +63,7 @@ class Index(object):
                 return col
         try:
             return (pd.DataFrame
-                    .from_records((get_dict(c) for c in source.iterdir()))
+                    .from_records((get_dict(c) for c in files))
                     .apply(lambda s: convert_column(s))
                     .sort_values('id')
                     .assign(root=lambda df: df.root.apply(self.root.__truediv__))

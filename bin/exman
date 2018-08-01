@@ -34,9 +34,10 @@ class Mark(argparse.Action):
             ind = int(run.name.split('-', 1)[0])
             if ind in selected:
                 dest.mkdir(exist_ok=True)
-                rel_param_symlink = pathlib.Path('..', '..', 'runs', run.name, exman.parser.PARAMS_FILE)
+                rel_param_symlink = pathlib.Path('..', '..', 'runs', run.name)
                 (dest / exman.parser.yaml_file(run.name)).symlink_to(
-                    rel_param_symlink
+                    rel_param_symlink,
+                    target_is_directory=True
                 )
                 selected.remove(ind)
                 print('Created symlink from', dest / run.name, '->', rel_param_symlink)

@@ -7,7 +7,6 @@ import yaml.representer
 import os
 import functools
 import itertools
-import warnings
 from filelock import FileLock
 __all__ = [
     'ExParser',
@@ -124,7 +123,9 @@ class ExParser(ParserWithRoot):
     |   `-- xxxxxx-YYYY-mm-dd-HH-MM-SS.yaml (symlink)
     |-- marked
     |   `-- <mark>
-    |       `-- xxxxxx-YYYY-mm-dd-HH-MM-SS.yaml (symlink)
+    |       `-- xxxxxx-YYYY-mm-dd-HH-MM-SS (symlink)
+    |           |-- params.yaml
+    |           `-- ...
     `-- tmp
         `-- xxxxxx-YYYY-mm-dd-HH-MM-SS
             |-- params.yaml
@@ -133,12 +134,14 @@ class ExParser(ParserWithRoot):
     """
     def __init__(self, *args, root=None, zfill=6,
                  args_for_setting_config_path=('--config', ),
+                 automark=(),
                  **kwargs):
         super().__init__(*args, root=root, zfill=zfill,
                          args_for_setting_config_path=args_for_setting_config_path,
                          config_file_parser_class=configargparse.YAMLConfigFileParser,
                          ignore_unknown_config_file_keys=True,
                          **kwargs)
+        self.automark = automark
         self.add_argument('--tmp', action='store_true')
 
     def _initialize_dir(self, tmp):
@@ -177,4 +180,13 @@ class ExParser(ParserWithRoot):
         if not args.tmp:
             symlink.symlink_to(rel_yaml_params_path)
             print('Created symlink from', symlink, '->', rel_yaml_params_path)
+        if self.automark and not args.tmp:
+            automark_path_part = pathlib.Path(*itertools.chain.from_iterable(
+                (mark, str(getattr(args, mark, '')))
+                for mark in self.automark))
+            markpath = pathlib.Path(self.marked, automark_path_part)
+            markpath.mkdir(exist_ok=True, parents=True)
+            relpathmark = pathlib.Path('..', *(['..']*len(automark_path_part.parts))) / 'runs' / name
+            (markpath / name).symlink_to(relpathmark, target_is_directory=True)
+            print('Created symlink from', markpath / name, '->', relpathmark)
         return args, argv

@@ -43,3 +43,54 @@ def test_marked(parser: exman.ExParser, script_runner, root):
     with pytest.raises(KeyError):
         exman.Index(parser.root).info('missing')
 
+
+def test_automarked(root: pathlib.Path):
+    parser = exman.ExParser(root=root, automark=['arg1'])
+    parser.add_argument('--arg1', default=1, type=int)
+    parser.add_argument('--arg2', default=True, type=bool)
+    parser.parse_args('--arg1=10 --arg2=F'.split())
+    parser.parse_args('--arg1=9 --arg2=t'.split())
+    info = exman.Index(parser.root).info()
+    arg1_9 = exman.Index(parser.root).info('arg1/9')
+    arg1_10 = exman.Index(parser.root).info('arg1/10')
+    assert len(info) == 2
+    assert len(arg1_9) == 1
+    assert arg1_9.id[0] == 2
+    assert len(arg1_10) == 1
+    assert arg1_10.id[0] == 1
+
+
+def test_automarked2(root: pathlib.Path):
+    parser = exman.ExParser(root=root, automark=['arg1', 'arg2'])
+    parser.add_argument('--arg1', default=1, type=int)
+    parser.add_argument('--arg2', default=True, type=bool)
+    parser.parse_args('--arg1=10 --arg2=F'.split())
+    parser.parse_args('--arg1=9 --arg2=t'.split())
+    info = exman.Index(parser.root).info()
+    arg1_9 = exman.Index(parser.root).info('arg1/9/arg2/True')
+    arg1_10 = exman.Index(parser.root).info('arg1/10/arg2/False')
+    arg_10_9 = exman.Index(parser.root).info('arg1/')
+    assert len(info) == 2
+    assert len(arg1_9) == 1
+    assert arg1_9.id[0] == 2
+    assert len(arg1_10) == 1
+    assert arg1_10.id[0] == 1
+    assert len(arg_10_9) == 2
+
+
+def test_automarked3(root: pathlib.Path):
+    parser = exman.ExParser(root=root, automark=['test', 'arg1', 'arg2'])
+    parser.add_argument('--arg1', default=1, type=int)
+    parser.add_argument('--arg2', default=True, type=bool)
+    parser.parse_args('--arg1=10 --arg2=F'.split())
+    parser.parse_args('--arg1=9 --arg2=t'.split())
+    info = exman.Index(parser.root).info()
+    arg1_9 = exman.Index(parser.root).info('test/arg1/9/arg2/True')
+    arg1_10 = exman.Index(parser.root).info('test/arg1/10/arg2/False')
+    arg_10_9 = exman.Index(parser.root).info('test/')
+    assert len(info) == 2
+    assert len(arg1_9) == 1
+    assert arg1_9.id[0] == 2
+    assert len(arg1_10) == 1
+    assert arg1_10.id[0] == 1
+    assert len(arg_10_9) == 2
