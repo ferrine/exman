@@ -94,3 +94,18 @@ def test_automarked3(root: pathlib.Path):
     assert len(arg1_10) == 1
     assert arg1_10.id[0] == 1
     assert len(arg_10_9) == 2
+
+
+def test_nans(root: pathlib.Path):
+    parser = exman.ExParser(root=root, automark=['test', 'arg1', 'arg2'])
+    parser.add_argument('--arg1', default=1, type=int)
+    parser.add_argument('--arg2', default=True, type=bool)
+    parser.parse_args('--arg1=10 --arg2=F'.split())
+    parser.parse_args('--arg1=9 --arg2=t'.split())
+    parser.add_argument('--arg3', default=2, type=int)
+    parser.parse_args('--arg1=9 --arg2=t'.split())
+    info = exman.Index(parser.root).info()
+    # TODO: what is the proper way to process nans???
+    # The below appears to be float64
+    assert str(info.dtypes['arg3']) != 'object'
+    # assert str(info.dtypes['arg3']) == 'int64'

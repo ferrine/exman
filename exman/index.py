@@ -21,15 +21,23 @@ def only_value_error(conv):
     return new_conv
 
 
-converter = strconv.Strconv()
+def none2none(none):
+    if none is None:
+        return None
+    else:
+        raise ValueError
 
-converter.register_converter('bool', only_value_error(parser.str2bool))
-converter.register_converter('time', only_value_error(
-    lambda time: datetime.datetime.strptime(time, parser.TIME_FORMAT)
-))
-converter.register_converter('json', only_value_error(json.loads))
-# last resort
-converter.register_converter('string', str)
+
+converter = strconv.Strconv(converters=[
+    ('int', strconv.convert_int),
+    ('float', strconv.convert_float),
+    ('bool', only_value_error(parser.str2bool)),
+    ('time', strconv.convert_time),
+    ('datetime', strconv.convert_datetime),
+    ('datetime1', lambda time: datetime.datetime.strptime(time, parser.TIME_FORMAT)),
+    ('date', strconv.convert_date),
+    ('json', only_value_error(json.loads))
+])
 
 
 class Index(object):
@@ -56,9 +64,10 @@ class Index(object):
             return configargparse.YAMLConfigFileParser().parse(cfg.open('r'))
 
         def convert_column(col):
-            types = list(set(converter.infer(i) for i in col))
-            if len(types) == 1 and types[0] is not None:
-                return col.apply(converter.get_converter(types[0]))
+            types = set(converter.infer(i) for i in col)
+            types -= {None}
+            if len(types) == 1:
+                return pd.Series(converter.convert_series(col), name=col.name, index=col.index)
             else:
                 return col
         try:
