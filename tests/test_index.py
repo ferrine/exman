@@ -103,9 +103,12 @@ def test_nans(root: pathlib.Path):
     parser.parse_args('--arg1=10 --arg2=F'.split())
     parser.parse_args('--arg1=9 --arg2=t'.split())
     parser.add_argument('--arg3', default=2, type=int)
+    parser.add_argument('--arg4', default='a', type=str)
     parser.parse_args('--arg1=9 --arg2=t'.split())
+    parser.parse_args('--arg1=9 --arg4=1'.split())
     info = exman.Index(parser.root).info()
     # TODO: what is the proper way to process nans???
     # The below appears to be float64
-    assert str(info.dtypes['arg3']) != 'object'
-    # assert str(info.dtypes['arg3']) == 'int64'
+    assert str(info.dtypes['arg3']) == 'float64'
+    assert str(info.dtypes['arg4']) == 'object'
+    assert info.arg4.iloc[-1] == '1'

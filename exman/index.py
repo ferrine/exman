@@ -36,7 +36,7 @@ converter = strconv.Strconv(converters=[
     ('datetime', strconv.convert_datetime),
     ('datetime1', lambda time: datetime.datetime.strptime(time, parser.TIME_FORMAT)),
     ('date', strconv.convert_date),
-    ('json', only_value_error(json.loads))
+    ('json', only_value_error(json.loads)),
 ])
 
 
@@ -64,12 +64,10 @@ class Index(object):
             return configargparse.YAMLConfigFileParser().parse(cfg.open('r'))
 
         def convert_column(col):
-            types = set(converter.infer(i) for i in col)
-            types -= {None}
-            if len(types) == 1:
-                return pd.Series(converter.convert_series(col), name=col.name, index=col.index)
-            else:
+            if any(isinstance(v, str) for v in converter.convert_series(col)):
                 return col
+            else:
+                return pd.Series(converter.convert_series(col), name=col.name, index=col.index)
         try:
             df = (pd.DataFrame
                   .from_records((get_dict(c) for c in files))
