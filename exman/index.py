@@ -71,11 +71,14 @@ class Index(object):
             else:
                 return col
         try:
-            return (pd.DataFrame
-                    .from_records((get_dict(c) for c in files))
-                    .apply(lambda s: convert_column(s))
-                    .sort_values('id')
-                    .assign(root=lambda df: df.root.apply(self.root.__truediv__))
-                    .reset_index(drop=True))
+            df = (pd.DataFrame
+                  .from_records((get_dict(c) for c in files))
+                  .apply(lambda s: convert_column(s))
+                  .sort_values('id')
+                  .assign(root=lambda _: _.root.apply(self.root.__truediv__))
+                  .reset_index(drop=True))
+            cols = df.columns.tolist()
+            cols.insert(0, cols.pop(cols.index('id')))
+            return df.reindex(columns=cols)
         except FileNotFoundError as e:
             raise KeyError(source.name) from e
