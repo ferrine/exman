@@ -50,7 +50,9 @@ root
 |   `-- xxxxxx-YYYY-mm-dd-HH-MM-SS.yaml (symlink)
 |-- marked
 |   `-- <mark>
-|       `-- xxxxxx-YYYY-mm-dd-HH-MM-SS.yaml (symlink)
+|       `-- xxxxxx-YYYY-mm-dd-HH-MM-SS (symlink)
+|           |-- params.yaml
+|           `-- ...
 `-- tmp
     `-- xxxxxx-YYYY-mm-dd-HH-MM-SS
         |-- params.yaml
