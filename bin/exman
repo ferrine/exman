@@ -64,7 +64,8 @@ class Delete(argparse.Action):
             ind = int(index.name.split('-', 1)[0])
             if ind in selected:
                 index.unlink()
-                selected.remove(ind)
+                if not namespace.all:
+                    selected.remove(ind)
         if namespace.all:
             for run in pathlib.Path('runs').iterdir():
                 ind = int(run.name.split('-', 1)[0])
