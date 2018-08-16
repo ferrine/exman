@@ -142,6 +142,7 @@ class ExParser(ParserWithRoot):
                          ignore_unknown_config_file_keys=True,
                          **kwargs)
         self.automark = automark
+        self.validators = []
         self.add_argument('--tmp', action='store_true')
 
     def _initialize_dir(self, tmp):
@@ -165,6 +166,7 @@ class ExParser(ParserWithRoot):
 
     def parse_known_args(self, *args, **kwargs):
         args, argv = super().parse_known_args(*args, **kwargs)
+        self.validate_params(args)
         absroot, relroot, name, time, num = self._initialize_dir(args.tmp)
         args.root = absroot
         yaml_params_path = args.root / PARAMS_FILE
@@ -190,3 +192,24 @@ class ExParser(ParserWithRoot):
             (markpath / name).symlink_to(relpathmark, target_is_directory=True)
             print('Created symlink from', markpath / name, '->', relpathmark)
         return args, argv
+
+    def register_validator(self, validator):
+        if not callable(validator):
+            raise TypeError('validator should be callable')
+        self.validators.append(validator)
+
+    def validate_params(self, params):
+        for validator in self.validators:
+            _validate(validator, params)
+
+
+def _validate(validator, params):
+    try:
+        ret = validator(params)
+    except Exception as e:
+        raise ValueError(e) from e
+    else:
+        if (ret is True) or (ret is None):
+            return
+        else:
+            raise ValueError('validation', ret)

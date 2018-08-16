@@ -49,3 +49,33 @@ def test_reuse(root, type, nargs, py_value, str_value):
     args2 = parser.parse_args('--config {}'.format(params).split())
     assert args2.param == py_value
     assert args1.root != args2.root
+
+
+def test_validator(root):
+    parser = exman.ExParser(root=root)
+    parser.add_argument('--param')
+
+    def val1(p):
+        return p.param != 'x'
+
+    def val2(p):
+        if p.param != 'y':
+            return
+        else:
+            raise ValueError
+
+    def val3(p):
+        if p.param != 'z':
+            return
+        else:
+            return 'should be z'
+
+    parser.register_validator(val1)
+    parser.register_validator(val2)
+    parser.register_validator(val3)
+    with pytest.raises(ValueError):
+        parser.parse_args('--param ' + 'x')
+    with pytest.raises(ValueError):
+        parser.parse_args('--param ' + 'y')
+    with pytest.raises(ValueError):
+        parser.parse_args('--param ' + 'z')
