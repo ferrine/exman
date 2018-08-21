@@ -32,7 +32,9 @@ def yaml_file(name):
 
 
 def simpleroot(__file__):
-    return pathlib.Path(os.path.dirname(os.path.abspath(__file__)))/FOLDER_DEFAULT
+    root = pathlib.Path(os.path.dirname(os.path.abspath(__file__)))/FOLDER_DEFAULT
+    os.makedirs(root, exist_ok=True)
+    return root
 
 
 def represent_as_str(self, data, tostr=str):

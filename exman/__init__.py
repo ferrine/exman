@@ -7,4 +7,4 @@ from .index import (
 )
 from . import index
 from . import parser
-__version__ = '0.0.2'
+__version__ = '0.0.3'
