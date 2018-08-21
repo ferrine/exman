@@ -8,6 +8,8 @@ import os
 import functools
 import itertools
 import collections
+import shutil
+import traceback
 from filelock import FileLock
 __all__ = [
     'ExParser',
@@ -21,10 +23,7 @@ DIR_FORMAT = '{num}-{time}'
 EXT = 'yaml'
 PARAMS_FILE = 'params.'+EXT
 FOLDER_DEFAULT = 'exman'
-RESERVED_DIRECTORIES = {
-    'runs', 'index',
-    'tmp', 'marked'
-}
+
 Validator = collections.namedtuple('Validator', 'call,message')
 
 
@@ -60,10 +59,15 @@ def str2bool(s):
         raise argparse.ArgumentTypeError(s, 'bool argument should be one of {}'.format(str(true + false)))
 
 
-class ParserWithRoot(configargparse.ArgumentParser):
-    def __init__(self, *args, root=None, zfill=6,
-                 **kwargs):
-        super().__init__(*args, **kwargs)
+class ExmanDirectory(object):
+    RESERVED_DIRECTORIES = {
+        'runs', 'index',
+        'tmp', 'marked',
+        'fails'
+    }
+
+    def __init__(self, root, zfill=6):
+        self.root = root
         if root is None:
             raise ValueError('Root directory is not specified')
         root = pathlib.Path(root)
@@ -73,10 +77,13 @@ class ParserWithRoot(configargparse.ArgumentParser):
             raise ValueError(root, 'Root directory does not exist')
         self.root = pathlib.Path(root)
         self.zfill = zfill
-        self.register('type', bool, str2bool)
-        for directory in RESERVED_DIRECTORIES:
+        for directory in self.RESERVED_DIRECTORIES:
             getattr(self, directory).mkdir(exist_ok=True)
         self.lock = FileLock(str(self.root/'lock'))
+
+    @property
+    def fails(self):
+        return self.root / 'fails'
 
     @property
     def runs(self):
@@ -110,6 +117,14 @@ class ParserWithRoot(configargparse.ArgumentParser):
 
     def next_ex_str(self):
         return str(self.next_ex()).zfill(self.zfill)
+
+
+class ParserWithRoot(ExmanDirectory, configargparse.ArgumentParser):
+    def __init__(self, *args, root=None, zfill=6,
+                 **kwargs):
+        ExmanDirectory.__init__(self, root, zfill)
+        configargparse.ArgumentParser.__init__(self, *args, **kwargs)
+        self.register('type', bool, str2bool)
 
 
 class ExParser(ParserWithRoot):
@@ -180,7 +195,9 @@ class ExParser(ParserWithRoot):
             print("time: '{}'".format(time.strftime(TIME_FORMAT)), file=f)
             print("id:", int(num), file=f)
         print(yaml_params_path.read_text())
+        created_symlinks = []
         symlink = self.index / yaml_file(name)
+        created_symlinks.append(symlink)
         if not args.tmp:
             symlink.symlink_to(rel_yaml_params_path)
             print('Created symlink from', symlink, '->', rel_yaml_params_path)
@@ -192,7 +209,10 @@ class ExParser(ParserWithRoot):
             markpath.mkdir(exist_ok=True, parents=True)
             relpathmark = pathlib.Path('..', *(['..']*len(automark_path_part.parts))) / 'runs' / name
             (markpath / name).symlink_to(relpathmark, target_is_directory=True)
+            created_symlinks.append(markpath / name)
             print('Created symlink from', markpath / name, '->', relpathmark)
+        safe_experiment = SafeExperiment(self.root, name, extra_symlinks=created_symlinks)
+        args.safe_experiment = safe_experiment
         return args, argv
 
     def register_validator(self, validator: callable, message: str):
@@ -215,3 +235,21 @@ def _validate(validator: Validator, params: argparse.Namespace):
             return
         else:
             raise argparse.ArgumentError(None, validator.message.format(**params.__dict__))
+
+
+class SafeExperiment(ExmanDirectory):
+    def __init__(self, root, name, extra_symlinks=()):
+        super().__init__(root)
+        self.name = name
+        self.extra_symlinks = extra_symlinks
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if exc_type is not None:
+            shutil.move(self.runs/self.name, self.fails/self.name)
+            for link in self.extra_symlinks:
+                os.unlink(link)
+            with (self.fails/self.name/'traceback.txt').open('w') as f:
+                f.writelines(traceback.format_exception(exc_type, exc_val, exc_tb))

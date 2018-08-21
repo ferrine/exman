@@ -83,3 +83,15 @@ def test_validator(root):
     with pytest.raises(argparse.ArgumentError) as e:
         parser.parse_args('--param ' + 'z')
         assert e.match('got z')
+
+
+def test_safe_experiment(root):
+    parser = exman.ExParser(root=root)
+    args = parser.parse_args([])
+    with pytest.raises(ValueError), args.safe_experiment:
+        raise ValueError('funny exception')
+    assert not (parser.index / exman.parser.yaml_file(args.root.name)).exists()
+    assert not args.root.exists()
+    assert (parser.fails / args.root.name).exists()
+    assert (parser.fails / args.root.name / 'traceback.txt').exists()
+    assert 'funny exception' in (parser.fails / args.root.name / 'traceback.txt').read_text()
