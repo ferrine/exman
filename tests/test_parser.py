@@ -1,3 +1,4 @@
+import argparse
 import exman
 import pytest
 
@@ -70,12 +71,15 @@ def test_validator(root):
         else:
             return 'should be z'
 
-    parser.register_validator(val1)
-    parser.register_validator(val2)
-    parser.register_validator(val3)
-    with pytest.raises(ValueError):
+    parser.register_validator(val1, 'should be not x, got {param}')
+    parser.register_validator(val2, 'should be not y, got {param}')
+    parser.register_validator(val3, 'should be not x, got {param}')
+    with pytest.raises(argparse.ArgumentError) as e:
         parser.parse_args('--param ' + 'x')
-    with pytest.raises(ValueError):
+        assert e.match('got x')
+    with pytest.raises(argparse.ArgumentError) as e:
         parser.parse_args('--param ' + 'y')
-    with pytest.raises(ValueError):
+        assert e.match('got y')
+    with pytest.raises(argparse.ArgumentError) as e:
         parser.parse_args('--param ' + 'z')
+        assert e.match('got z')

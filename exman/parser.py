@@ -7,6 +7,7 @@ import yaml.representer
 import os
 import functools
 import itertools
+import collections
 from filelock import FileLock
 __all__ = [
     'ExParser',
@@ -24,6 +25,7 @@ RESERVED_DIRECTORIES = {
     'runs', 'index',
     'tmp', 'marked'
 }
+Validator = collections.namedtuple('Validator', 'call,message')
 
 
 def yaml_file(name):
@@ -193,23 +195,23 @@ class ExParser(ParserWithRoot):
             print('Created symlink from', markpath / name, '->', relpathmark)
         return args, argv
 
-    def register_validator(self, validator):
+    def register_validator(self, validator: callable, message: str):
         if not callable(validator):
             raise TypeError('validator should be callable')
-        self.validators.append(validator)
+        self.validators.append(Validator(validator, message))
 
     def validate_params(self, params):
         for validator in self.validators:
             _validate(validator, params)
 
 
-def _validate(validator, params):
+def _validate(validator: Validator, params: argparse.Namespace):
     try:
-        ret = validator(params)
+        ret = validator.call(params)
     except Exception as e:
-        raise ValueError(e) from e
+        raise argparse.ArgumentError(None, validator.message.format(**params.__dict__)) from e
     else:
         if (ret is True) or (ret is None):
             return
         else:
-            raise ValueError('validation', ret)
+            raise argparse.ArgumentError(None, validator.message.format(**params.__dict__))
