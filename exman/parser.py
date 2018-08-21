@@ -14,6 +14,7 @@ from filelock import FileLock
 __all__ = [
     'ExParser',
     'simpleroot',
+    'optional'
 ]
 
 
@@ -61,6 +62,15 @@ def str2bool(s):
         raise argparse.ArgumentTypeError(s, 'bool argument should be one of {}'.format(str(true + false)))
 
 
+def optional(t):
+    def converter(obj):
+        if obj is None or obj.lower() in {'none'}:
+            return None
+        else:
+            return t(obj)
+    return converter
+
+
 class ExmanDirectory(object):
     RESERVED_DIRECTORIES = {
         'runs', 'index',
@@ -105,7 +115,11 @@ class ExmanDirectory(object):
 
     def max_ex(self):
         max_num = 0
-        for directory in itertools.chain(self.runs.iterdir(), self.tmp.iterdir()):
+        for directory in itertools.chain(
+                self.runs.iterdir(),
+                self.tmp.iterdir(),
+                self.fails.iterdir()
+        ):
             num = int(directory.name.split('-', 1)[0])
             if num > max_num:
                 max_num = num
@@ -217,7 +231,7 @@ class ExParser(ParserWithRoot):
         args.safe_experiment = safe_experiment
         return args, argv
 
-    def register_validator(self, validator: callable, message: str):
+    def register_validator(self, validator: callable, message: str='validation error'):
         if not callable(validator):
             raise TypeError('validator should be callable')
         self.validators.append(Validator(validator, message))

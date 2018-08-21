@@ -1,6 +1,7 @@
 from .parser import (
     ExParser,
-    simpleroot
+    simpleroot,
+    optional
 )
 from .index import (
     Index

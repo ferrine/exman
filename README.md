@@ -19,18 +19,136 @@ to iterate over folder with results and apply the same function to it.
 pip install -U git+https://github.com/ferrine/exman.git#egg=exman
 ```
 
-## Main Features
+## Simple Start
 Simple drop in replacement of standard `argparse.ArgumentParser`
 ```python
 #file: main.py
 import exman
-
+# you should always use `exman.simpleroot(__file__)` unless you want another dir
 parser = exman.ExParser(root=exman.simpleroot(__file__))  # `root = ./exman` relative to the main file
 parser.add_argument(...)
 ```
-
 You then just add arguments as you did before without any change.
 
+## Best Practices
+
+### Error Handling in main
+Since 0.0.3 you can use the following context manager. If `main()` function fails it will be moved to `exman/fails` 
+
+```python
+import exman
+# you should always use `exman.simpleroot(__file__)` unless you want another dir
+parser = exman.ExParser(root=exman.simpleroot(__file__))  # `root = ./exman` relative to the main file
+parser.add_argument(...)
+...
+if __name__ == '__main__':
+    args = parser.parse_args()
+    with args.safe_experiment:
+        # do your stuff
+        main(args)
+
+```
+
+### Optional Parameters
+To avoid issues in [reproducing experiments](#rerunning-experiment) you should consider using `exman.optional(type)` for optional arguments
+
+```python
+import exman
+# you should always use `exman.simpleroot(__file__)` unless you want another dir
+parser = exman.ExParser(root=exman.simpleroot(__file__))  # `root = ./exman` relative to the main file
+parser.add_argument('--myarg', type=exman.optional(int))
+```
+
+### Validators
+In simple argparser you cant easily validate multiple arguments, it is easy in Exman. You can create an informative error message
+
+```python
+import exman
+# you should always use `exman.simpleroot(__file__)` unless you want another dir
+parser = exman.ExParser(root=exman.simpleroot(__file__))  # `root = ./exman` relative to the main file
+parser.add_argument(...)
+# here `p` stands for initial namespace parsed from arguments
+parser.register_validator(lambda p: p.arg1 != p.arg2 or p.arg3 == p.arg4,
+                          # next line will be autoformatted for you using .format
+                          'You have provided wrong set of arguments: {arg1}, {arg2}, {arg3}, {arg4}')
+```
+
+### Marry Pandas with Exman
+Pandas is a great tool to work with table data. Experiments are the same data and can be loaded in python. So all you
+need is to run batch of experiments and open a Jupyter notebook.
+
+```python
+import exman
+index = exman.Index(exman.simpleroot('/path/to/main.py'))
+experiments = index.info()
+```
+
+Table has columns `time (datetime64[ns])` of experiment and `root (pathlib.Path)` path to results. Moreover this
+table has all other parameters of the experiment. You later can filter/order the results according to them and have
+easy-breezy access to results folder and it's content.
+
+```python
+for i, ex in experiments.iterrows():
+    # do some actions
+    # use ex.param for parameters
+    # ex.root / 'plot.png' for file paths
+    ...
+```
+
+### Local Configuration
+You can store local configuration files in your experiment folder. You should provide the filename to ExParser as well.
+
+```python
+import exman
+# you should always use `exman.simpleroot(__file__)` unless you want another dir
+parser = exman.ExParser(
+    root=exman.simpleroot(__file__),
+    default_config_files=['local.cfg']
+)
+```
+
+Local configuration stores globally defined default values, they override defaults set in main file
+
+ 
+### Auto Structure
+If you want argument specific human friendly directory structure you can tie specific argument names for that
+
+```python
+import exman
+# you should always use `exman.simpleroot(__file__)` unless you want another dir
+parser = exman.ExParser(
+    root=exman.simpleroot(__file__),
+    automark=['arg1', 'constant']
+)
+parser.add_argument('--arg1')
+```
+
+Later you can see your [marked folder](#directory-structure-and-cli) looks like this
+
+```
+exman/marked/arg1/<arg1>/constant/<name-of-experiment>/...
+```
+
+This can be usefull if you work in a team. Write in `main.py`
+
+```python
+import exman
+# you should always use `exman.simpleroot(__file__)` unless you want another dir
+parser = exman.ExParser(
+    root=exman.simpleroot(__file__),
+    automark=['user'],
+    # store `user: myuser` content in local.cfg
+    default_config_files=['local.cfg']
+)
+parser.add_argument('--user')
+```
+
+After you've done that, your team runs can be stored in a single exman directory assuming all access rights are correctly set up.
+```
+exman/marked/user/<username>/constant/<name-of-experiment>/...
+```
+
+## Directory Structure and CLI
 In command line runs will look also the same:
 
 ```
@@ -51,6 +169,7 @@ root
 |   `-- xxxxxx-YYYY-mm-dd-HH-MM-SS
 |       |-- params.yaml
 |       `-- ...
+|-- fails
 |-- index
 |   `-- xxxxxx-YYYY-mm-dd-HH-MM-SS.yaml (symlink)
 |-- marked
@@ -65,34 +184,17 @@ root
 ```
 
 
-## Rerunning experiment
+### Rerunning experiment
 If you want to reproduce an experiment, you can provide source configuration file in yaml format. For example:
 
 ```bash
 python main.py --config root/index/<name-of-experiment-to-reproduce>.yaml
 ```
 
-All the values will be restored from the previous run.
+All the values will be restored from the previous run. You can also modify old values in `--config ...` using 
 
-## Loading Pandas
-Pandas is a great tool to work with table data. Experiments are the same data and can be loaded in python. So all you
-need is to run batch of experiments and open a Jupyter notebook.
-
-```python
-import exman
-index = exman.Index(exman.simpleroot('/path/to/main.py'))
-experiments = index.info()
-```
-
-Table has columns `time (datetime64[ns])` of experiment and `root (pathlib.Path)` path to results. Moreover this
-table has all other parameters of the experiment. You later can filter/order the results according to them and have
-easy-breezy access to results folder and it's content.
-
-```python
-for i, ex in experiments.iterrows():
-    # do some actions
-    # use ex.param for parameters
-    # ex.root / 'plot.png' for file paths
+```bash
+python main.py --config root/index/<name-of-experiment-to-reproduce>.yaml --override-param=new_value
 ```
 
 ## Marking experiments
@@ -106,7 +208,10 @@ exman mark <key> <#ex1> [<#ex2> <#ex3> ...]
 and later in Jupyter
 
 ```python
+index = exman.Index(exman.simpleroot('/path/to/main.py'))
 experiments = index.info('<key>')
+# assuming you work in a team and use best practice advice
+user_experiments = index.info('user/username')
 ```
 
 ## Deleting experiments
