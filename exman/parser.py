@@ -196,9 +196,9 @@ class ExParser(ParserWithRoot):
             print("id:", int(num), file=f)
         print(yaml_params_path.read_text())
         created_symlinks = []
-        symlink = self.index / yaml_file(name)
-        created_symlinks.append(symlink)
         if not args.tmp:
+            symlink = self.index / yaml_file(name)
+            created_symlinks.append(symlink)
             symlink.symlink_to(rel_yaml_params_path)
             print('Created symlink from', symlink, '->', rel_yaml_params_path)
         if self.automark and not args.tmp:
@@ -211,7 +211,7 @@ class ExParser(ParserWithRoot):
             (markpath / name).symlink_to(relpathmark, target_is_directory=True)
             created_symlinks.append(markpath / name)
             print('Created symlink from', markpath / name, '->', relpathmark)
-        safe_experiment = SafeExperiment(self.root, name, extra_symlinks=created_symlinks)
+        safe_experiment = SafeExperiment(self.root, args.root, extra_symlinks=created_symlinks)
         args.safe_experiment = safe_experiment
         return args, argv
 
@@ -238,9 +238,9 @@ def _validate(validator: Validator, params: argparse.Namespace):
 
 
 class SafeExperiment(ExmanDirectory):
-    def __init__(self, root, name, extra_symlinks=()):
+    def __init__(self, root, run, extra_symlinks=()):
         super().__init__(root)
-        self.name = name
+        self.run = run
         self.extra_symlinks = extra_symlinks
 
     def __enter__(self):
@@ -248,8 +248,8 @@ class SafeExperiment(ExmanDirectory):
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         if exc_type is not None:
-            shutil.move(self.runs/self.name, self.fails/self.name)
+            shutil.move(self.run, self.fails/self.run.name)
             for link in self.extra_symlinks:
                 os.unlink(link)
-            with (self.fails/self.name/'traceback.txt').open('w') as f:
+            with (self.fails/self.run.name/'traceback.txt').open('w') as f:
                 f.writelines(traceback.format_exception(exc_type, exc_val, exc_tb))

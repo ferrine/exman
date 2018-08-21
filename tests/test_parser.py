@@ -95,3 +95,15 @@ def test_safe_experiment(root):
     assert (parser.fails / args.root.name).exists()
     assert (parser.fails / args.root.name / 'traceback.txt').exists()
     assert 'funny exception' in (parser.fails / args.root.name / 'traceback.txt').read_text()
+
+
+def test_safe_experiment_tmp(root):
+    parser = exman.ExParser(root=root)
+    args = parser.parse_args(['--tmp'])
+    with pytest.raises(ValueError), args.safe_experiment:
+        raise ValueError('funny exception')
+    assert not (parser.index / exman.parser.yaml_file(args.root.name)).exists()
+    assert not args.root.exists()
+    assert (parser.fails / args.root.name).exists()
+    assert (parser.fails / args.root.name / 'traceback.txt').exists()
+    assert 'funny exception' in (parser.fails / args.root.name / 'traceback.txt').read_text()
