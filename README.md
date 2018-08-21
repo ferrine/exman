@@ -14,6 +14,11 @@ Visualizing results became a kind of pain, you had to remember a mapping `parame
 into different folders made even more mess. I had really bad experience in visualizations. I got that all I need was
 to iterate over folder with results and apply the same function to it.
 
+## Installation
+```bash
+pip install -U git+https://github.com/ferrine/exman.git#egg=exman
+```
+
 ## Main Features
 Simple drop in replacement of standard `argparse.ArgumentParser`
 ```python
