@@ -13,8 +13,6 @@ mark = commands.add_parser('mark')
 def key_validator(key):
     if not key.isidentifier():
         raise argparse.ArgumentError('Mark "{}" should be an identifier'.format(key))
-    if key in exman.parser.RESERVED_DIRECTORIES:
-        raise argparse.ArgumentError('"{}" mark is not allowed'.format(key))
     return key
 
 

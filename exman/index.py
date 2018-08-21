@@ -40,17 +40,9 @@ converter = strconv.Strconv(converters=[
 ])
 
 
-class Index(object):
+class Index(parser.ExmanDirectory):
     def __init__(self, root):
-        self.root = pathlib.Path(root)
-
-    @property
-    def index(self):
-        return self.root / 'index'
-
-    @property
-    def marked(self):
-        return self.root / 'marked'
+        super().__init__(root)
 
     def info(self, source=None):
         if source is None:
