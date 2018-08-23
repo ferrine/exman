@@ -78,19 +78,26 @@ class ExmanDirectory(object):
         'fails'
     }
 
-    def __init__(self, root, zfill=6):
+    def __init__(self, root, zfill=6, mode='create'):
+        assert mode in {'create', 'validate'}
         self.root = root
         if root is None:
             raise ValueError('Root directory is not specified')
         root = pathlib.Path(root)
-        if not root.is_absolute():
-            raise ValueError(root, 'Root directory is not absolute path')
+        if mode == 'create':
+            if not root.is_absolute():
+                raise ValueError(root, 'Root directory is not absolute path')
         if not root.exists():
             raise ValueError(root, 'Root directory does not exist')
         self.root = pathlib.Path(root)
         self.zfill = zfill
-        for directory in self.RESERVED_DIRECTORIES:
-            getattr(self, directory).mkdir(exist_ok=True)
+        if mode == 'create':
+            for directory in self.RESERVED_DIRECTORIES:
+                getattr(self, directory).mkdir(exist_ok=True)
+        else:
+            for directory in self.RESERVED_DIRECTORIES:
+                if not getattr(self, directory).exists():
+                    raise ValueError('The provided directory does not seem to be Exman root directory')
         self.lock = FileLock(str(self.root/'lock'))
 
     @property
@@ -138,7 +145,7 @@ class ExmanDirectory(object):
 class ParserWithRoot(ExmanDirectory, configargparse.ArgumentParser):
     def __init__(self, *args, root=None, zfill=6,
                  **kwargs):
-        ExmanDirectory.__init__(self, root, zfill)
+        ExmanDirectory.__init__(self, root, zfill, 'create')
         configargparse.ArgumentParser.__init__(self, *args, **kwargs)
         self.register('type', bool, str2bool)
 

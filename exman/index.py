@@ -42,7 +42,7 @@ converter = strconv.Strconv(converters=[
 
 class Index(parser.ExmanDirectory):
     def __init__(self, root):
-        super().__init__(root)
+        super().__init__(root, mode='validate')
 
     def info(self, source=None):
         if source is None:
