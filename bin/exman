@@ -4,6 +4,7 @@ import argparse
 import sys
 import shutil
 import exman
+import os
 parser = argparse.ArgumentParser()
 commands = parser.add_subparsers(title='commands', help='Experiment manager CLI')
 
@@ -11,9 +12,14 @@ mark = commands.add_parser('mark')
 
 
 def key_validator(key):
-    if not key.isidentifier():
-        raise argparse.ArgumentError('Mark "{}" should be an identifier'.format(key))
-    return key
+    try:
+        path = pathlib.Path(key)
+    except (TypeError, NotImplementedError):
+        raise argparse.ArgumentError('Mark "{}" should be a valid relative path'.format(key))
+    else:
+        if path.is_absolute():
+            raise argparse.ArgumentError('Mark "{}" should be a valid relative path'.format(key))
+    return path
 
 
 mark.add_argument('key',
@@ -31,8 +37,8 @@ class Mark(argparse.Action):
         for run in pathlib.Path('runs').iterdir():
             ind = int(run.name.split('-', 1)[0])
             if ind in selected:
-                dest.mkdir(exist_ok=True)
-                rel_param_symlink = pathlib.Path('..', '..', 'runs', run.name)
+                os.makedirs(dest, exist_ok=True)
+                rel_param_symlink = pathlib.Path('..', *(['..'] * len(namespace.key.parts))) / 'runs' / run.name
                 (dest / exman.parser.yaml_file(run.name)).symlink_to(
                     rel_param_symlink,
                     target_is_directory=True
@@ -78,4 +84,6 @@ class Delete(argparse.Action):
 delete.add_argument('runs',
                     action=Delete,
                     help='runs to delete')
-parser.parse_args()
+if __name__ == '__main__':
+    exman.parser.ExmanDirectory('.', mode='validate')
+    parser.parse_args()

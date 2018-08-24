@@ -143,9 +143,9 @@ class ExmanDirectory(object):
 
 
 class ParserWithRoot(ExmanDirectory, configargparse.ArgumentParser):
-    def __init__(self, *args, root=None, zfill=6,
+    def __init__(self, *args, root=None, zfill=6, mode='create',
                  **kwargs):
-        ExmanDirectory.__init__(self, root, zfill, 'create')
+        ExmanDirectory.__init__(self, root, zfill, mode)
         configargparse.ArgumentParser.__init__(self, *args, **kwargs)
         self.register('type', bool, str2bool)
 
