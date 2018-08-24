@@ -1,15 +1,20 @@
 import exman
+import pytest
 
 # fixtures:
 #   parser: exman.ExParser
 
 
-def test_mark(parser: exman.ExParser, script_runner, root):
+@pytest.mark.parametrize(
+    'mark',
+    ['new', 'new/21', 'a/a/a/a/a/a/a']
+)
+def test_mark(parser: exman.ExParser, script_runner, root, mark):
     script_runner.launch_mode = 'in_process'
     args = parser.parse_args([])
-    info = script_runner.run('exman', 'mark', 'new', '1', '2', cwd=root)
+    info = script_runner.run('exman', 'mark', mark, '1', '2', cwd=root)
     assert info.success
-    assert (parser.marked / 'new' / exman.parser.yaml_file(args.root.name)).exists()
+    assert (parser.marked / mark / exman.parser.yaml_file(args.root.name)).exists()
     assert r'runs {2} were not found' in info.stderr
 
 
