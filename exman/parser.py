@@ -246,6 +246,7 @@ class ExParser(ParserWithRoot):
         self.validators.append(Validator(validator, message))
 
     def register_setter(self, setter: callable):
+        """Use with care"""
         self.setters.append(setter)
 
     def validate_params(self, params):
