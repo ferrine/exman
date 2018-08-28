@@ -183,6 +183,7 @@ class ExParser(ParserWithRoot):
                          **kwargs)
         self.automark = automark
         self.validators = []
+        self.setters = []
         self.add_argument('--tmp', action='store_true')
 
     def _initialize_dir(self, tmp):
@@ -204,8 +205,9 @@ class ExParser(ParserWithRoot):
             return self._initialize_dir(tmp)
         return absroot, relroot, name, time, num
 
-    def parse_known_args(self, *args, **kwargs):
-        args, argv = super().parse_known_args(*args, **kwargs)
+    def parse_args(self, *args, **kwargs):
+        args = super().parse_args(*args, **kwargs)
+        self.set_additional_params(args)
         self.validate_params(args)
         absroot, relroot, name, time, num = self._initialize_dir(args.tmp)
         args.root = absroot
@@ -236,16 +238,23 @@ class ExParser(ParserWithRoot):
             print('Created symlink from', markpath / name, '->', relpathmark)
         safe_experiment = SafeExperiment(self.root, args.root, extra_symlinks=created_symlinks)
         args.safe_experiment = safe_experiment
-        return args, argv
+        return args
 
     def register_validator(self, validator: callable, message: str='validation error'):
         if not callable(validator):
             raise TypeError('validator should be callable')
         self.validators.append(Validator(validator, message))
 
+    def register_setter(self, setter: callable):
+        self.setters.append(setter)
+
     def validate_params(self, params):
         for validator in self.validators:
             _validate(validator, params)
+
+    def set_additional_params(self, params):
+        for setter in self.setters:
+            setter(params)
 
 
 def _validate(validator: Validator, params: argparse.Namespace):

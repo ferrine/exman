@@ -107,3 +107,10 @@ def test_safe_experiment_tmp(root):
     assert (parser.fails / args.root.name).exists()
     assert (parser.fails / args.root.name / 'traceback.txt').exists()
     assert 'funny exception' in (parser.fails / args.root.name / 'traceback.txt').read_text()
+
+
+def test_setters(root):
+    parser = exman.ExParser(root=root)
+    parser.register_setter(lambda p: p.__dict__.update(arg1=1))
+    args = parser.parse_args(['--tmp'])
+    assert args.arg1 == 1
