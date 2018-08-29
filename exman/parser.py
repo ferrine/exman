@@ -240,7 +240,7 @@ class ExParser(ParserWithRoot):
         args.safe_experiment = safe_experiment
         return args
 
-    def register_validator(self, validator: callable, message: str='validation error'):
+    def register_validator(self, validator: callable, message: str = 'validation error'):
         if not callable(validator):
             raise TypeError('validator should be callable')
         self.validators.append(Validator(validator, message))

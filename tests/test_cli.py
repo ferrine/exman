@@ -14,7 +14,7 @@ def test_mark(parser: exman.ExParser, script_runner, root, mark):
     args = parser.parse_args([])
     info = script_runner.run('exman', 'mark', mark, '1', '2', cwd=root)
     assert info.success
-    assert (parser.marked / mark / exman.parser.yaml_file(args.root.name)).exists()
+    assert (parser.marked / mark / args.root.name).exists()
     assert r'runs {2} were not found' in info.stderr
 
 

@@ -39,7 +39,7 @@ class Mark(argparse.Action):
             if ind in selected:
                 os.makedirs(dest, exist_ok=True)
                 rel_param_symlink = pathlib.Path('..', *(['..'] * len(namespace.key.parts))) / 'runs' / run.name
-                (dest / exman.parser.yaml_file(run.name)).symlink_to(
+                (dest / run.name).symlink_to(
                     rel_param_symlink,
                     target_is_directory=True
                 )
