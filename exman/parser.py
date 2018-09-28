@@ -143,9 +143,9 @@ class ExmanDirectory(object):
 
 
 class ParserWithRoot(ExmanDirectory, configargparse.ArgumentParser):
-    def __init__(self, *args, root=None, zfill=6, mode='create',
+    def __init__(self, *args, root=None, zfill=6,
                  **kwargs):
-        ExmanDirectory.__init__(self, root, zfill, mode)
+        ExmanDirectory.__init__(self, root, zfill, mode='create')
         configargparse.ArgumentParser.__init__(self, *args, **kwargs)
         self.register('type', bool, str2bool)
 
@@ -272,7 +272,7 @@ def _validate(validator: Validator, params: argparse.Namespace):
 
 class SafeExperiment(ExmanDirectory):
     def __init__(self, root, run, extra_symlinks=()):
-        super().__init__(root)
+        super().__init__(root, mode='validate')
         self.run = run
         self.extra_symlinks = extra_symlinks
 
