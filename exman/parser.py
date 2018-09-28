@@ -34,7 +34,6 @@ def yaml_file(name):
 
 def simpleroot(__file__):
     root = pathlib.Path(os.path.dirname(os.path.abspath(__file__)))/FOLDER_DEFAULT
-    os.makedirs(root, exist_ok=True)
     return root
 
 
@@ -86,7 +85,8 @@ class ExmanDirectory(object):
         root = pathlib.Path(root)
         if mode == 'create':
             if not root.is_absolute():
-                raise ValueError(root, 'Root directory is not absolute path')
+                raise ValueError(root, 'Root directory is not an absolute path')
+            os.makedirs(self.root, exist_ok=True)
         if not root.exists():
             raise ValueError(root, 'Root directory does not exist')
         self.root = pathlib.Path(root)
