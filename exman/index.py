@@ -5,9 +5,8 @@ import json
 import functools
 import datetime
 from . import parser
-__all__ = [
-    'Index'
-]
+
+__all__ = ["Index"]
 
 
 def only_value_error(conv):
@@ -17,6 +16,7 @@ def only_value_error(conv):
             return conv(value)
         except Exception as e:
             raise ValueError from e
+
     return new_conv
 
 
@@ -27,21 +27,26 @@ def none2none(none):
         raise ValueError
 
 
-converter = strconv.Strconv(converters=[
-    ('int', strconv.convert_int),
-    ('float', strconv.convert_float),
-    ('bool', only_value_error(parser.str2bool)),
-    ('time', strconv.convert_time),
-    ('datetime', strconv.convert_datetime),
-    ('datetime1', lambda time: datetime.datetime.strptime(time, parser.TIME_FORMAT)),
-    ('date', strconv.convert_date),
-    ('json', only_value_error(json.loads)),
-])
+converter = strconv.Strconv(
+    converters=[
+        ("int", strconv.convert_int),
+        ("float", strconv.convert_float),
+        ("bool", only_value_error(parser.str2bool)),
+        ("time", strconv.convert_time),
+        ("datetime", strconv.convert_datetime),
+        (
+            "datetime1",
+            lambda time: datetime.datetime.strptime(time, parser.TIME_FORMAT),
+        ),
+        ("date", strconv.convert_date),
+        ("json", only_value_error(json.loads)),
+    ]
+)
 
 
 class Index(parser.ExmanDirectory):
     def __init__(self, root):
-        super().__init__(root, mode='validate')
+        super().__init__(root, mode="validate")
 
     def info(self, source=None):
         if source is None:
@@ -49,25 +54,29 @@ class Index(parser.ExmanDirectory):
             files = source.iterdir()
         else:
             source = self.marked / source
-            files = source.glob('**/*/'+parser.PARAMS_FILE)
+            files = source.glob("**/*/" + parser.PARAMS_FILE)
 
         def get_dict(cfg):
-            return configargparse.YAMLConfigFileParser().parse(cfg.open('r'))
+            return configargparse.YAMLConfigFileParser().parse(cfg.open("r"))
 
         def convert_column(col):
             if any(isinstance(v, str) for v in converter.convert_series(col)):
                 return col
             else:
-                return pd.Series(converter.convert_series(col), name=col.name, index=col.index)
+                return pd.Series(
+                    converter.convert_series(col), name=col.name, index=col.index
+                )
+
         try:
-            df = (pd.DataFrame
-                  .from_records((get_dict(c) for c in files))
-                  .apply(lambda s: convert_column(s))
-                  .sort_values('id')
-                  .assign(root=lambda _: _.root.apply(self.root.__truediv__))
-                  .reset_index(drop=True))
+            df = (
+                pd.DataFrame.from_records((get_dict(c) for c in files))
+                .apply(lambda s: convert_column(s))
+                .sort_values("id")
+                .assign(root=lambda _: _.root.apply(self.root.__truediv__))
+                .reset_index(drop=True)
+            )
             cols = df.columns.tolist()
-            cols.insert(0, cols.pop(cols.index('id')))
+            cols.insert(0, cols.pop(cols.index("id")))
             return df.reindex(columns=cols)
         except FileNotFoundError as e:
             raise KeyError(source.name) from e

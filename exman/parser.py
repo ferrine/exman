@@ -11,29 +11,26 @@ import collections
 import shutil
 import traceback
 from filelock import FileLock
-__all__ = [
-    'ExParser',
-    'simpleroot',
-    'optional'
-]
+
+__all__ = ["ExParser", "simpleroot", "optional"]
 
 
-TIME_FORMAT_DIR = '%Y-%m-%d-%H-%M-%S'
-TIME_FORMAT = '%Y-%m-%dT%H:%M:%S'
-DIR_FORMAT = '{num}-{time}'
-EXT = 'yaml'
-PARAMS_FILE = 'params.'+EXT
-FOLDER_DEFAULT = 'exman'
+TIME_FORMAT_DIR = "%Y-%m-%d-%H-%M-%S"
+TIME_FORMAT = "%Y-%m-%dT%H:%M:%S"
+DIR_FORMAT = "{num}-{time}"
+EXT = "yaml"
+PARAMS_FILE = "params." + EXT
+FOLDER_DEFAULT = "exman"
 
-Validator = collections.namedtuple('Validator', 'call,message')
+Validator = collections.namedtuple("Validator", "call,message")
 
 
 def yaml_file(name):
-    return name + '.' + EXT
+    return name + "." + EXT
 
 
 def simpleroot(__file__):
-    root = pathlib.Path(os.path.dirname(os.path.abspath(__file__)))/FOLDER_DEFAULT
+    root = pathlib.Path(os.path.dirname(os.path.abspath(__file__))) / FOLDER_DEFAULT
     return root
 
 
@@ -50,84 +47,83 @@ register_str_converter(pathlib.PosixPath, pathlib.WindowsPath)
 
 
 def str2bool(s):
-    true = ('true', 't', 'yes', 'y', 'on', '1')
-    false = ('false', 'f', 'no', 'n', 'off', '0')
+    true = ("true", "t", "yes", "y", "on", "1")
+    false = ("false", "f", "no", "n", "off", "0")
 
     if s.lower() in true:
         return True
     elif s.lower() in false:
         return False
     else:
-        raise argparse.ArgumentTypeError(s, 'bool argument should be one of {}'.format(str(true + false)))
+        raise argparse.ArgumentTypeError(
+            s, "bool argument should be one of {}".format(str(true + false))
+        )
 
 
 def optional(t):
     def converter(obj):
-        if obj is None or obj.lower() in {'none'}:
+        if obj is None or obj.lower() in {"none"}:
             return None
         else:
             return t(obj)
+
     return converter
 
 
 class ExmanDirectory(object):
-    RESERVED_DIRECTORIES = {
-        'runs', 'index',
-        'tmp', 'marked',
-        'fails'
-    }
+    RESERVED_DIRECTORIES = {"runs", "index", "tmp", "marked", "fails"}
 
-    def __init__(self, root, zfill=6, mode='create'):
-        assert mode in {'create', 'validate'}
+    def __init__(self, root, zfill=6, mode="create"):
+        assert mode in {"create", "validate"}
         self.root = root
         if root is None:
-            raise ValueError('Root directory is not specified')
+            raise ValueError("Root directory is not specified")
         root = pathlib.Path(root)
-        if mode == 'create':
+        if mode == "create":
             if not root.is_absolute():
-                raise ValueError(root, 'Root directory is not an absolute path')
+                raise ValueError(root, "Root directory is not an absolute path")
             os.makedirs(self.root, exist_ok=True)
         if not root.exists():
-            raise ValueError(root, 'Root directory does not exist')
+            raise ValueError(root, "Root directory does not exist")
         self.root = pathlib.Path(root)
         self.zfill = zfill
-        if mode == 'create':
+        if mode == "create":
             for directory in self.RESERVED_DIRECTORIES:
                 getattr(self, directory).mkdir(exist_ok=True)
         else:
             for directory in self.RESERVED_DIRECTORIES:
                 if not getattr(self, directory).exists():
-                    raise ValueError('The provided directory does not seem to be Exman root directory')
-        self.lock = FileLock(str(self.root/'lock'))
+                    raise ValueError(
+                        "The provided directory does not seem to be Exman root directory"
+                    )
+        self.lock = FileLock(str(self.root / "lock"))
 
     @property
     def fails(self):
-        return self.root / 'fails'
+        return self.root / "fails"
 
     @property
     def runs(self):
-        return self.root / 'runs'
+        return self.root / "runs"
 
     @property
     def marked(self):
-        return self.root / 'marked'
+        return self.root / "marked"
 
     @property
     def index(self):
-        return self.root / 'index'
+        return self.root / "index"
 
     @property
     def tmp(self):
-        return self.root / 'tmp'
+        return self.root / "tmp"
 
     def max_ex(self):
         max_num = 0
         for directory in itertools.chain(
-                self.runs.iterdir(),
-                self.tmp.iterdir(),
-                self.fails.iterdir()
+            self.runs.iterdir(), self.tmp.iterdir(), self.fails.iterdir()
         ):
-            num = int(directory.name.split('-', 1)[0])
+            num = int(directory.name.split("-", 1)[0])
             if num > max_num:
                 max_num = num
         return max_num
@@ -142,12 +138,29 @@ class ExmanDirectory(object):
         return str(self.next_ex()).zfill(self.zfill)
 
 
+class VolatileAwareParser(object):
+    def __init__(self, parser, volatile):
+        self._parser = parser
+        self._volatile = volatile
+
+    def __getattr__(self, item):
+        return getattr(self._parser, item)
+
+    def __dir__(self):
+        return self._parser.__dir__()
+
+    def parse(self, *args, **kwargs):
+        parsed = self._parser.parse(*args, *kwargs)
+        for key in self._volatile:
+            parsed.pop(key, None)
+        return parsed
+
+
 class ParserWithRoot(ExmanDirectory, configargparse.ArgumentParser):
-    def __init__(self, *args, root=None, zfill=6,
-                 **kwargs):
-        ExmanDirectory.__init__(self, root, zfill, mode='create')
+    def __init__(self, *args, root=None, zfill=6, **kwargs):
+        ExmanDirectory.__init__(self, root, zfill, mode="create")
         configargparse.ArgumentParser.__init__(self, *args, **kwargs)
-        self.register('type', bool, str2bool)
+        self.register("type", bool, str2bool)
 
 
 class ExParser(ParserWithRoot):
@@ -172,19 +185,30 @@ class ExParser(ParserWithRoot):
             `-- ...
     ```
     """
-    def __init__(self, *args, root=None, zfill=6,
-                 args_for_setting_config_path=('--config', ),
-                 automark=(),
-                 **kwargs):
-        super().__init__(*args, root=root, zfill=zfill,
-                         args_for_setting_config_path=args_for_setting_config_path,
-                         config_file_parser_class=configargparse.YAMLConfigFileParser,
-                         ignore_unknown_config_file_keys=True,
-                         **kwargs)
+
+    def __init__(
+        self,
+        *args,
+        root=None,
+        zfill=6,
+        args_for_setting_config_path=("--config",),
+        automark=(),
+        **kwargs
+    ):
+        self._volatile = set()
+        super().__init__(
+            *args,
+            root=root,
+            zfill=zfill,
+            args_for_setting_config_path=args_for_setting_config_path,
+            config_file_parser_class=configargparse.YAMLConfigFileParser,
+            ignore_unknown_config_file_keys=True,
+            **kwargs
+        )
         self.automark = automark
         self.validators = []
         self.setters = []
-        self.add_argument('--tmp', action='store_true')
+        self.add_argument("--tmp", action="store_true")
 
     def _initialize_dir(self, tmp):
         try:
@@ -194,10 +218,10 @@ class ExParser(ParserWithRoot):
                 name = DIR_FORMAT.format(num=num, time=time.strftime(TIME_FORMAT_DIR))
                 if tmp:
                     absroot = self.tmp / name
-                    relroot = pathlib.Path('tmp') / name
+                    relroot = pathlib.Path("tmp") / name
                 else:
                     absroot = self.runs / name
-                    relroot = pathlib.Path('runs') / name
+                    relroot = pathlib.Path("runs") / name
                 # this process now safely owns root directory
                 # raises FileExistsError on fail
                 absroot.mkdir()
@@ -212,37 +236,49 @@ class ExParser(ParserWithRoot):
         absroot, relroot, name, time, num = self._initialize_dir(args.tmp)
         args.root = absroot
         yaml_params_path = args.root / PARAMS_FILE
-        rel_yaml_params_path = pathlib.Path('..', 'runs', name, PARAMS_FILE)
-        with yaml_params_path.open('a') as f:
-            dumpd = args.__dict__.copy()
-            dumpd['root'] = relroot
-            yaml.dump(dumpd, f, default_flow_style=False)
-            print("time: '{}'".format(time.strftime(TIME_FORMAT)), file=f)
-            print("id:", int(num), file=f)
+        rel_yaml_params_path = pathlib.Path("..", "runs", name, PARAMS_FILE)
+        dumpd = argparse.Namespace(**args.__dict__)
+        self.write_config_file(dumpd, [str(yaml_params_path)])
+        print("root: '{}'".format(relroot), file=yaml_params_path.open("a"))
+        print(
+            "time: '{}'".format(time.strftime(TIME_FORMAT)),
+            file=yaml_params_path.open("a"),
+        )
+        print("id:", int(num), file=yaml_params_path.open("a"))
         print(yaml_params_path.read_text())
         created_symlinks = []
         if not args.tmp:
             symlink = self.index / yaml_file(name)
             created_symlinks.append(symlink)
             symlink.symlink_to(rel_yaml_params_path)
-            print('Created symlink from', symlink, '->', rel_yaml_params_path)
+            print("Created symlink from", symlink, "->", rel_yaml_params_path)
         if self.automark and not args.tmp:
-            automark_path_part = pathlib.Path(*itertools.chain.from_iterable(
-                (mark, str(getattr(args, mark, '')))
-                for mark in self.automark))
+            automark_path_part = pathlib.Path(
+                *itertools.chain.from_iterable(
+                    (mark, str(getattr(args, mark, ""))) for mark in self.automark
+                )
+            )
             markpath = pathlib.Path(self.marked, automark_path_part)
             markpath.mkdir(exist_ok=True, parents=True)
-            relpathmark = pathlib.Path('..', *(['..']*len(automark_path_part.parts))) / 'runs' / name
+            relpathmark = (
+                pathlib.Path("..", *([".."] * len(automark_path_part.parts)))
+                / "runs"
+                / name
+            )
             (markpath / name).symlink_to(relpathmark, target_is_directory=True)
             created_symlinks.append(markpath / name)
-            print('Created symlink from', markpath / name, '->', relpathmark)
-        safe_experiment = SafeExperiment(self.root, args.root, extra_symlinks=created_symlinks)
+            print("Created symlink from", markpath / name, "->", relpathmark)
+        safe_experiment = SafeExperiment(
+            self.root, args.root, extra_symlinks=created_symlinks
+        )
         args.safe_experiment = safe_experiment
         return args
 
-    def register_validator(self, validator: callable, message: str = 'validation error'):
+    def register_validator(
+        self, validator: callable, message: str = "validation error"
+    ):
         if not callable(validator):
-            raise TypeError('validator should be callable')
+            raise TypeError("validator should be callable")
         self.validators.append(Validator(validator, message))
 
     def register_setter(self, setter: callable):
@@ -257,22 +293,89 @@ class ExParser(ParserWithRoot):
         for setter in self.setters:
             setter(params)
 
+    def add_argument(self, *args, volatile=False, **kwargs):
+        action = super().add_argument(*args, **kwargs)
+        if volatile:
+            config_file_keys = self.get_possible_config_keys(action)
+            # the key used to save value
+            self._volatile.add(config_file_keys[0])
+        return action
+
+    @property
+    def _config_file_parser(self):
+        return self.__config_file_parser
+
+    @_config_file_parser.setter
+    def _config_file_parser(self, parser):
+        # self._volatile is mutable, changes should affect parser
+        self.__config_file_parser = VolatileAwareParser(parser, self._volatile)
+
+    @_config_file_parser.deleter
+    def _config_file_parser(self):
+        self.__config_file_parser = None
+
+    def get_items_for_config_file_output(self, source_to_settings, parsed_namespace):
+        # dirty patch!
+        # TODO: await https://github.com/bw2/ConfigArgParse/pull/130
+
+        config_file_items = collections.OrderedDict()
+        for source, settings in source_to_settings.items():
+            if source == configargparse._COMMAND_LINE_SOURCE_KEY:
+                _, existing_command_line_args = settings[""]
+                for action in self._actions:
+                    config_file_keys = self.get_possible_config_keys(action)
+                    if (
+                        config_file_keys
+                        and not action.is_positional_arg
+                        and configargparse.already_on_command_line(
+                            existing_command_line_args, action.option_strings
+                        )
+                    ):
+                        value = getattr(parsed_namespace, action.dest, None)
+                        if value is not None:
+                            if isinstance(value, bool):
+                                value = str(value).lower()
+                            config_file_items[config_file_keys[0]] = value
+
+            elif source == configargparse._ENV_VAR_SOURCE_KEY:
+                for key, (action, value) in settings.items():
+                    config_file_keys = self.get_possible_config_keys(action)
+                    if config_file_keys:
+                        value = getattr(parsed_namespace, action.dest, None)
+                        if value is not None:
+                            config_file_items[config_file_keys[0]] = value
+            elif source.startswith(configargparse._CONFIG_FILE_SOURCE_KEY):
+                for key, (action, value) in settings.items():
+                    config_file_items[key] = value
+            elif source == configargparse._DEFAULTS_SOURCE_KEY:
+                for key, (action, value) in settings.items():
+                    config_file_keys = self.get_possible_config_keys(action)
+                    if config_file_keys:
+                        value = getattr(parsed_namespace, action.dest, None)
+                        if value is not None:
+                            config_file_items[config_file_keys[0]] = value
+        return config_file_items
+
 
 def _validate(validator: Validator, params: argparse.Namespace):
     try:
         ret = validator.call(params)
     except Exception as e:
-        raise argparse.ArgumentError(None, validator.message.format(**params.__dict__)) from e
+        raise argparse.ArgumentError(
+            None, validator.message.format(**params.__dict__)
+        ) from e
     else:
         if (ret is True) or (ret is None):
             return
         else:
-            raise argparse.ArgumentError(None, validator.message.format(**params.__dict__))
+            raise argparse.ArgumentError(
+                None, validator.message.format(**params.__dict__)
+            )
 
 
 class SafeExperiment(ExmanDirectory):
     def __init__(self, root, run, extra_symlinks=()):
-        super().__init__(root, mode='validate')
+        super().__init__(root, mode="validate")
         self.run = run
         self.extra_symlinks = extra_symlinks
 
@@ -281,8 +384,8 @@ class SafeExperiment(ExmanDirectory):
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         if exc_type is not None:
-            shutil.move(self.run, self.fails/self.run.name)
+            shutil.move(self.run, self.fails / self.run.name)
             for link in self.extra_symlinks:
                 os.unlink(link)
-            with (self.fails/self.run.name/'traceback.txt').open('w') as f:
+            with (self.fails / self.run.name / "traceback.txt").open("w") as f:
                 f.writelines(traceback.format_exception(exc_type, exc_val, exc_tb))

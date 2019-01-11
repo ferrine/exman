@@ -114,3 +114,23 @@ def test_setters(root):
     parser.register_setter(lambda p: p.__dict__.update(arg1=1))
     args = parser.parse_args(['--tmp'])
     assert args.arg1 == 1
+
+
+def test_dest_taken_in_account_while_reuse(root):
+    parser = exman.ExParser(root=root)
+    parser.add_argument('--arg1', dest='arg2', default='1')
+    args1 = parser.parse_args(['--arg1', '2'])
+    params = args1.root / exman.parser.yaml_file('params')
+    args2 = parser.parse_args('--config {}'.format(params).split())
+    assert args2.arg2 == '2'
+
+
+def test_volatile(root):
+    parser = exman.ExParser(root=root)
+    parser.add_argument('--arg1', dest='arg1', default='1')
+    parser.add_argument('--arg2', dest='arg2', default='1', volatile=True)
+    args1 = parser.parse_args(['--arg1', '2', '--arg2', '2'])
+    params = args1.root / exman.parser.yaml_file('params')
+    args2 = parser.parse_args('--config {}'.format(params).split())
+    assert args2.arg1 == '2'
+    assert args2.arg2 == '1'

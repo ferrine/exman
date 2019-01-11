@@ -197,6 +197,13 @@ All the values will be restored from the previous run. You can also modify old v
 python main.py --config root/index/<name-of-experiment-to-reproduce>.yaml --override-param=new_value
 ```
 
+In case you do not want to restore some argument from saved config (it may be some dynamic 
+setted variable) you should use `volatile=True` in `add_argument`:
+
+```python
+parser.add_argument('--my_dynamic_id', default=os.environ.get('AUTOSETTED_ID'), volatile=True)
+```
+
 ## Marking experiments
 If you like some experiments you can mark them for easier later access.
 
