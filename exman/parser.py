@@ -314,48 +314,6 @@ class ExParser(ParserWithRoot):
     def _config_file_parser(self):
         self.__config_file_parser = None
 
-    def get_items_for_config_file_output(self, source_to_settings, parsed_namespace):
-        # dirty patch!
-        # TODO: await https://github.com/bw2/ConfigArgParse/pull/130
-
-        config_file_items = collections.OrderedDict()
-        for source, settings in source_to_settings.items():
-            if source == configargparse._COMMAND_LINE_SOURCE_KEY:
-                _, existing_command_line_args = settings[""]
-                for action in self._actions:
-                    config_file_keys = self.get_possible_config_keys(action)
-                    if (
-                        config_file_keys
-                        and not action.is_positional_arg
-                        and configargparse.already_on_command_line(
-                            existing_command_line_args, action.option_strings
-                        )
-                    ):
-                        value = getattr(parsed_namespace, action.dest, None)
-                        if value is not None:
-                            if isinstance(value, bool):
-                                value = str(value).lower()
-                            config_file_items[config_file_keys[0]] = value
-
-            elif source == configargparse._ENV_VAR_SOURCE_KEY:
-                for key, (action, value) in settings.items():
-                    config_file_keys = self.get_possible_config_keys(action)
-                    if config_file_keys:
-                        value = getattr(parsed_namespace, action.dest, None)
-                        if value is not None:
-                            config_file_items[config_file_keys[0]] = value
-            elif source.startswith(configargparse._CONFIG_FILE_SOURCE_KEY):
-                for key, (action, value) in settings.items():
-                    config_file_items[key] = value
-            elif source == configargparse._DEFAULTS_SOURCE_KEY:
-                for key, (action, value) in settings.items():
-                    config_file_keys = self.get_possible_config_keys(action)
-                    if config_file_keys:
-                        value = getattr(parsed_namespace, action.dest, None)
-                        if value is not None:
-                            config_file_items[config_file_keys[0]] = value
-        return config_file_items
-
 
 def _validate(validator: Validator, params: argparse.Namespace):
     try:
