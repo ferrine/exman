@@ -3,4 +3,4 @@ from .index import Index
 from . import index
 from . import parser
 
-__version__ = "0.0.4"
+__version__ = "0.1.0"
