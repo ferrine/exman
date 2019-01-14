@@ -17,6 +17,9 @@ if __name__ == '__main__':
         name='exman',
         packages=find_packages(),
         version=get_version(),
+        description='Simple and minimalistic utility to manage many '
+                    'experiments runs and custom analysis of results',
+        long_description=open('README.rst').read(),
         python_requires='>=3.5',
         author='Max Kochurov',
         scripts=['bin/exman'],

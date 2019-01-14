@@ -2,7 +2,7 @@ Experiment Manager (exman)
 ==========================
 
 Simple and minimalistic utility to manage many experiments runs and
-custom analysis of results?
+custom analysis of results
 
 Why another custom solution?
 ----------------------------
