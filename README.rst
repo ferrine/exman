@@ -31,6 +31,8 @@ Installation
 .. code:: bash
 
     pip install -U git+https://github.com/ferrine/exman.git#egg=exman
+    # or
+    pip install exman
 
 Simple Start
 ------------
