@@ -12,7 +12,7 @@ import shutil
 import traceback
 from filelock import FileLock
 
-__all__ = ["ExParser", "simpleroot", "optional"]
+__all__ = ["ExParser", "simpleroot", "optional", "ArgumentError"]
 
 
 TIME_FORMAT_DIR = "%Y-%m-%d-%H-%M-%S"
@@ -23,6 +23,8 @@ PARAMS_FILE = "params." + EXT
 FOLDER_DEFAULT = "exman"
 
 Validator = collections.namedtuple("Validator", "call,message")
+# make this public
+ArgumentError = argparse.ArgumentError
 
 
 def yaml_file(name):
@@ -318,6 +320,9 @@ class ExParser(ParserWithRoot):
 def _validate(validator: Validator, params: argparse.Namespace):
     try:
         ret = validator.call(params)
+    except argparse.ArgumentError as e:
+        # do not override this error
+        raise e
     except Exception as e:
         raise argparse.ArgumentError(
             None, validator.message.format(**params.__dict__)
