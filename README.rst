@@ -102,6 +102,8 @@ easy in Exman. You can create an informative error message
                               # next line will be autoformatted for you using .format
                               'You have provided wrong set of arguments: {arg1}, {arg2}, {arg3}, {arg4}')
 
+Advanced validators can raise `exman.ArgumentError` that contains a better message than the one in validators function
+
 Marry Pandas with Exman
 ~~~~~~~~~~~~~~~~~~~~~~~
 
