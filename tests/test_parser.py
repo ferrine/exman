@@ -134,3 +134,27 @@ def test_volatile(root):
     args2 = parser.parse_args('--config {}'.format(params).split())
     assert args2.arg1 == '2'
     assert args2.arg2 == '1'
+
+
+def test_optional(root):
+    parser = exman.ExParser(root=root)
+    parser.add_argument('--arg1', type=exman.optional(int), dest='arg1', default=None)
+
+    args1 = parser.parse_args(['--arg1', '2'])
+    params = args1.root / exman.parser.yaml_file('params')
+    args2 = parser.parse_args('--config {}'.format(params).split())
+    assert args2.arg1 == 2
+    args3 = parser.parse_args([])
+    params = args3.root / exman.parser.yaml_file('params')
+    args4 = parser.parse_args('--config {}'.format(params).split())
+    assert args4.arg1 is None
+
+
+def test_dest(root):
+    parser = exman.ExParser(root=root)
+    parser.add_argument('--arg1', type=exman.optional(int), dest='arg2', default=None)
+
+    args1 = parser.parse_args(['--arg1', '2'])
+    params = args1.root / exman.parser.yaml_file('params')
+    args2 = parser.parse_args('--config {}'.format(params).split())
+    assert args2.arg2 == 2

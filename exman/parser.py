@@ -64,7 +64,7 @@ def str2bool(s):
 
 def optional(t):
     def converter(obj):
-        if obj is None or obj.lower() in {"none"}:
+        if obj is None or obj.lower() in {"none", "null"}:
             return None
         else:
             return t(obj)
@@ -239,14 +239,7 @@ class ExParser(ParserWithRoot):
         args.root = absroot
         yaml_params_path = args.root / PARAMS_FILE
         rel_yaml_params_path = pathlib.Path("..", "runs", name, PARAMS_FILE)
-        dumpd = argparse.Namespace(**args.__dict__)
-        self.write_config_file(dumpd, [str(yaml_params_path)])
-        print("root: '{}'".format(relroot), file=yaml_params_path.open("a"))
-        print(
-            "time: '{}'".format(time.strftime(TIME_FORMAT)),
-            file=yaml_params_path.open("a"),
-        )
-        print("id:", int(num), file=yaml_params_path.open("a"))
+        self.dump_config(args, relroot, time, num, yaml_params_path)
         print(yaml_params_path.read_text())
         created_symlinks = []
         if not args.tmp:
@@ -315,6 +308,18 @@ class ExParser(ParserWithRoot):
     @_config_file_parser.deleter
     def _config_file_parser(self):
         self.__config_file_parser = None
+
+    def dump_config(self, args, relroot, time, num, target_yaml):
+        with target_yaml.open('a') as f:
+            dumpd = args.__dict__.copy()
+            dumpd['root'] = relroot
+            yaml.dump(dumpd, f, default_flow_style=False)
+            print("time: '{}'".format(time.strftime(TIME_FORMAT)), file=f)
+            print("id:", int(num), file=f)
+
+    def get_possible_config_keys(self, action):
+        keys = super().get_possible_config_keys(action)
+        return list(keys) + [action.dest]
 
 
 def _validate(validator: Validator, params: argparse.Namespace):
