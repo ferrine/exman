@@ -5,6 +5,7 @@ import datetime
 import yaml
 import yaml.representer
 import os
+import re
 import functools
 import itertools
 import collections
@@ -18,6 +19,7 @@ __all__ = ["ExParser", "simpleroot", "optional", "ArgumentError"]
 TIME_FORMAT_DIR = "%Y-%m-%d-%H-%M-%S"
 TIME_FORMAT = "%Y-%m-%dT%H:%M:%S"
 DIR_FORMAT = "{num}-{time}"
+DIR_PATTERN = re.compile(r"^\d+-\d{4}-\d{2}-\d{2}-\d{2}-\d{2}-\d{2}$")
 EXT = "yaml"
 PARAMS_FILE = "params." + EXT
 FOLDER_DEFAULT = "exman"
@@ -122,8 +124,11 @@ class ExmanDirectory(object):
 
     def max_ex(self):
         max_num = 0
-        for directory in itertools.chain(
-            self.runs.iterdir(), self.tmp.iterdir(), self.fails.iterdir()
+        for directory in filter(
+            lambda d: DIR_PATTERN.match(d.name),
+            itertools.chain(
+                self.runs.iterdir(), self.tmp.iterdir(), self.fails.iterdir()
+            ),
         ):
             num = int(directory.name.split("-", 1)[0])
             if num > max_num:
@@ -131,7 +136,9 @@ class ExmanDirectory(object):
         return max_num
 
     def num_ex(self):
-        return len(list(self.runs.iterdir()))
+        return len(
+            list(filter(lambda d: DIR_PATTERN.match(d.name), self.runs.iterdir()))
+        )
 
     def next_ex(self):
         return self.max_ex() + 1
@@ -310,9 +317,9 @@ class ExParser(ParserWithRoot):
         self.__config_file_parser = None
 
     def dump_config(self, args, relroot, time, num, target_yaml):
-        with target_yaml.open('a') as f:
+        with target_yaml.open("a") as f:
             dumpd = args.__dict__.copy()
-            dumpd['root'] = relroot
+            dumpd["root"] = relroot
             yaml.dump(dumpd, f, default_flow_style=False)
             print("time: '{}'".format(time.strftime(TIME_FORMAT)), file=f)
             print("id:", int(num), file=f)
