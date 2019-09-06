@@ -1,7 +1,8 @@
 import pathlib
 import pytest
 import exman
-
+import random
+import time
 # fixtures:
 #   parser: exman.ExParser
 
@@ -116,3 +117,16 @@ def test_nans(root: pathlib.Path):
     assert str(info.dtypes['arg3']) == 'float64'
     assert str(info.dtypes['arg4']) == 'object'
     assert info.arg4.iloc[-1] == '1'
+
+
+def test_many_configs(root: pathlib.Path):
+    parser = exman.ExParser(root=root)
+    for i in range(100):
+        parser.add_argument('--arg{}'.format(i), default=1, type=int)
+    for j in range(1000):
+        parser.parse_args(["--arg{}={}".format(i, random.randint(0, 1000)) for i in range(100)])
+    t0 = time.time()
+    info = exman.Index(parser.root).info()
+    t1 = time.time()
+    delta = t1 - t0
+    assert delta < 5

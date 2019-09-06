@@ -4,6 +4,7 @@ import strconv
 import json
 import functools
 import datetime
+import joblib
 from . import parser
 
 __all__ = ["Index"]
@@ -67,9 +68,12 @@ class Index(parser.ExmanDirectory):
                     converter.convert_series(col), name=col.name, index=col.index
                 )
 
+        records = joblib.Parallel(n_jobs=-1)(
+            (joblib.delayed(get_dict)(c) for c in files)
+        )
         try:
             df = (
-                pd.DataFrame.from_records((get_dict(c) for c in files))
+                pd.DataFrame.from_records(records)
                 .apply(lambda s: convert_column(s))
                 .sort_values("id")
                 .assign(root=lambda _: _.root.apply(self.root.__truediv__))
