@@ -49,7 +49,7 @@ class Index(parser.ExmanDirectory):
     def __init__(self, root):
         super().__init__(root, mode="validate")
 
-    def info(self, source=None):
+    def info(self, source=None, *, njobs=-1):
         if source is None:
             source = self.index
             files = source.iterdir()
@@ -68,9 +68,10 @@ class Index(parser.ExmanDirectory):
                     converter.convert_series(col), name=col.name, index=col.index
                 )
 
-        records = joblib.Parallel(n_jobs=-1)(
+        records = joblib.Parallel(n_jobs=njobs)(
             (joblib.delayed(get_dict)(c) for c in files)
         )
+
         try:
             df = (
                 pd.DataFrame.from_records(records)
