@@ -11,6 +11,7 @@ import itertools
 import collections
 import shutil
 import traceback
+import git as gitlib
 from filelock import FileLock
 
 __all__ = ["ExParser", "simpleroot", "optional", "ArgumentError"]
@@ -22,6 +23,7 @@ DIR_FORMAT = "{num}-{time}"
 DIR_PATTERN = re.compile(r"^\d+-\d{4}-\d{2}-\d{2}-\d{2}-\d{2}-\d{2}$")
 EXT = "yaml"
 PARAMS_FILE = "params." + EXT
+DIFF_FILE = "changes.diff"
 FOLDER_DEFAULT = "exman"
 
 Validator = collections.namedtuple("Validator", "call,message")
@@ -202,6 +204,8 @@ class ExParser(ParserWithRoot):
         zfill=6,
         args_for_setting_config_path=("--config",),
         automark=(),
+        git=None,
+        git_assert_clean=False,
         **kwargs
     ):
         self._volatile = set()
@@ -217,7 +221,37 @@ class ExParser(ParserWithRoot):
         self.automark = automark
         self.validators = []
         self.setters = []
-        self.add_argument("--tmp", action="store_true")
+        self._init_git(git, git_assert_clean)
+        self.add_argument(
+            "--tmp",
+            action="store_true",
+            help="Run experiment in tmp directory, not adding it to index",
+        )
+        self.add_argument(
+            "--git-dirty",
+            action="store_true",
+            help="Force run experiment not asserting it is clean",
+        )
+
+    def _init_git(self, git, git_assert_clean):
+        if git is not None or git_assert_clean:
+            if git_assert_clean and git is None:
+                git = "."
+            elif git is True:
+                git = "."
+            try:
+                repo = gitlib.Repo(git)
+            except gitlib.InvalidGitRepositoryError as e:
+                raise gitlib.InvalidGitRepositoryError(
+                    "{}\nto solve the problem, please provide absolute path to ExParser".format(
+                        str(e)
+                    )
+                )
+            self.repo = repo
+            self.git_assert_clean = git_assert_clean
+        else:
+            self.repo = None
+            self.git_assert_clean = False
 
     def _initialize_dir(self, tmp):
         try:
@@ -240,6 +274,8 @@ class ExParser(ParserWithRoot):
 
     def parse_args(self, *args, **kwargs):
         args = super().parse_args(*args, **kwargs)
+        if self.git_assert_clean and not args.git_dirty and self.repo.is_dirty():
+            raise RuntimeError("Repository is dirty, please commit changes")
         self.set_additional_params(args)
         self.validate_params(args)
         absroot, relroot, name, time, num = self._initialize_dir(args.tmp)
@@ -247,6 +283,8 @@ class ExParser(ParserWithRoot):
         yaml_params_path = args.root / PARAMS_FILE
         rel_yaml_params_path = pathlib.Path("..", "runs", name, PARAMS_FILE)
         self.dump_config(args, relroot, time, num, yaml_params_path)
+        if self.repo is not None and self.repo.is_dirty():
+            self.dump_git_diff(args.root / DIFF_FILE)
         print(yaml_params_path.read_text())
         created_symlinks = []
         if not args.tmp:
@@ -316,9 +354,16 @@ class ExParser(ParserWithRoot):
     def _config_file_parser(self):
         self.__config_file_parser = None
 
+    def dump_git_diff(self, diff_file):
+        with open(diff_file, "w") as f:
+            f.write(self.repo.git.diff(self.repo.head))
+
     def dump_config(self, args, relroot, time, num, target_yaml):
         with target_yaml.open("a") as f:
             dumpd = args.__dict__.copy()
+            if self.repo is not None:
+                dumpd["commit"] = str(self.repo.head.commit)
+                dumpd["dirty"] = self.repo.is_dirty()
             dumpd["root"] = relroot
             yaml.dump(dumpd, f, default_flow_style=False)
             print("time: '{}'".format(time.strftime(TIME_FORMAT)), file=f)

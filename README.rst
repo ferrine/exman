@@ -71,6 +71,31 @@ function fails it will be moved to ``exman/fails``
             # do your stuff
             main(args)
 
+
+Keep Your Repository Clean
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+To avoid non reproducible results you can ensure you have commited all changes. Exman will take care and will log
+``hash`` for the commit and ``diff`` if any. To use these features you should hint the parser with the repo.
+
+.. code:: python
+
+    import exman
+
+    parser = exman.ExParser(root=exman.simpleroot(__file__), git=True)
+    # less fragile solution, but works only locally
+    parser = exman.ExParser(root=exman.simpleroot(__file__), git="/abs/path/to/repo")
+    # an ok solution, if you are sure in the relative path
+    parser = exman.ExParser(root=exman.simpleroot(__file__),
+        git=os.path.join(os.path.dirname(__file__), "relative", "path", "goes", "here"),
+        git_assert_clean=True  # run assertion check before each run. False by default.
+    )
+
+In cli of your favorite experiment you can skip the assertion if you want to:
+
+.. code:: bash
+
+    python train.py --git-dirty --other-args
+
 Optional Parameters
 ~~~~~~~~~~~~~~~~~~~
 

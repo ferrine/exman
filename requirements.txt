@@ -3,3 +3,5 @@ PyYAML
 strconv
 pandas
 filelock
+joblib
+gitpython
