@@ -5,6 +5,7 @@ import datetime
 import yaml
 import yaml.representer
 import os
+import sys
 import re
 import functools
 import itertools
@@ -446,5 +447,7 @@ class SafeExperiment(ExmanDirectory):
             shutil.move(self.run, self.fails / self.run.name)
             for link in self.extra_symlinks:
                 os.unlink(link)
+            trace = traceback.format_exception(exc_type, exc_val, exc_tb)
             with (self.fails / self.run.name / "traceback.txt").open("w") as f:
-                f.writelines(traceback.format_exception(exc_type, exc_val, exc_tb))
+                f.writelines(trace)
+            print("\n".join(trace), file=sys.stdout)

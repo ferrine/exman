@@ -111,11 +111,12 @@ def test_safe_experiment(root):
     )
 
 
-def test_safe_experiment_tmp(root):
+def test_safe_experiment_tmp(root, capsys):
     parser = exman.ExParser(root=root)
     args = parser.parse_args(["--tmp"])
     with pytest.raises(ValueError), args.safe_experiment:
         raise ValueError("funny exception")
+    assert "ValueError" in str(capsys.readouterr()[0])
     assert not (parser.index / exman.parser.yaml_file(args.root.name)).exists()
     assert not args.root.exists()
     assert (parser.fails / args.root.name).exists()
