@@ -480,7 +480,7 @@ class SafeExperiment(ExmanDirectory):
             print("\n".join(trace), file=sys.stdout)
             return not critical
 
-    def __call__(self, prompt=None, default=None):
+    def __call__(self, *, prompt=None, default=None):
         if prompt is not None:
             self.prompt = prompt
         if default is not None:
