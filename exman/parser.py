@@ -464,7 +464,7 @@ class SafeExperiment(ExmanDirectory):
                     ans = inputimeout.inputimeout(
                         "\nmove to fails? ({}): ".format(default), 10
                     )
-                except (inputimeout.TimeoutOccurred, termios_error):
+                except (inputimeout.TimeoutOccurred, termios_error, KeyboardInterrupt):
                     ans = default
                 critical = str2bool(ans, self.default)
             if critical:
