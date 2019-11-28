@@ -126,7 +126,7 @@ def test_many_configs(root: pathlib.Path):
             ["--arg{}={}".format(i, random.randint(0, 1000)) for i in range(100)]
         )
     t0 = time.time()
-    info = exman.Index(parser.root).info()
+    info = exman.Index(parser.root).info(njobs=-1)
     t1 = time.time()
     delta = t1 - t0
-    assert delta < 5
+    assert delta < 10

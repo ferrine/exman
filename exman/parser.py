@@ -11,6 +11,7 @@ import itertools
 import collections
 import shutil
 import traceback
+import contextlib
 import git as gitlib
 from filelock import FileLock
 
@@ -52,6 +53,16 @@ def register_str_converter(*types, tostr=str):
 register_str_converter(pathlib.PosixPath, pathlib.WindowsPath)
 
 
+@contextlib.contextmanager
+def umask_permissions(active=False):
+    if active:
+        oldmask = os.umask(000)
+        yield
+        os.umask(oldmask)
+    else:
+        yield
+
+
 def str2bool(s):
     true = ("true", "t", "yes", "y", "on", "1")
     false = ("false", "f", "no", "n", "off", "0")
@@ -79,30 +90,33 @@ def optional(t):
 class ExmanDirectory(object):
     RESERVED_DIRECTORIES = {"runs", "index", "tmp", "marked", "fails"}
 
-    def __init__(self, root, zfill=6, mode="create"):
-        assert mode in {"create", "validate"}
-        self.root = root
-        if root is None:
-            raise ValueError("Root directory is not specified")
-        root = pathlib.Path(root)
-        if mode == "create":
-            if not root.is_absolute():
-                raise ValueError(root, "Root directory is not an absolute path")
-            os.makedirs(self.root, exist_ok=True)
-        if not root.exists():
-            raise ValueError(root, "Root directory does not exist")
-        self.root = pathlib.Path(root)
-        self.zfill = zfill
-        if mode == "create":
-            for directory in self.RESERVED_DIRECTORIES:
-                getattr(self, directory).mkdir(exist_ok=True)
-        else:
-            for directory in self.RESERVED_DIRECTORIES:
-                if not getattr(self, directory).exists():
-                    raise ValueError(
-                        "The provided directory does not seem to be Exman root directory"
-                    )
-        self.lock = FileLock(str(self.root / "lock"))
+    def __init__(self, root, zfill=6, mode="create", shared=False):
+        with umask_permissions(shared):
+            assert mode in {"create", "validate"}
+            self.root = root
+            if root is None:
+                raise ValueError("Root directory is not specified")
+            root = pathlib.Path(root)
+            if mode == "create":
+                if not root.is_absolute():
+                    raise ValueError(root, "Root directory is not an absolute path")
+                os.makedirs(self.root, exist_ok=True)
+            if not root.exists():
+                raise ValueError(root, "Root directory does not exist")
+            self.root = pathlib.Path(root)
+            self.zfill = zfill
+            if mode == "create":
+                for directory in self.RESERVED_DIRECTORIES:
+                    getattr(self, directory).mkdir(exist_ok=True)
+            else:
+                for directory in self.RESERVED_DIRECTORIES:
+                    if not getattr(self, directory).exists():
+                        raise ValueError(
+                            "The provided directory does not seem to be Exman root directory"
+                        )
+
+            self.lock = FileLock(str(self.root / "lock"))
+            self.shared = shared
 
     @property
     def fails(self):
@@ -168,8 +182,8 @@ class VolatileAwareParser(object):
 
 
 class ParserWithRoot(ExmanDirectory, configargparse.ArgumentParser):
-    def __init__(self, *args, root=None, zfill=6, **kwargs):
-        ExmanDirectory.__init__(self, root, zfill, mode="create")
+    def __init__(self, *args, root=None, zfill=6, shared=False, **kwargs):
+        ExmanDirectory.__init__(self, root, zfill, mode="create", shared=shared)
         configargparse.ArgumentParser.__init__(self, *args, **kwargs)
         self.register("type", bool, str2bool)
 
@@ -213,6 +227,7 @@ class ExParser(ParserWithRoot):
             *args,
             root=root,
             zfill=zfill,
+            shared=False,
             args_for_setting_config_path=args_for_setting_config_path,
             config_file_parser_class=configargparse.YAMLConfigFileParser,
             ignore_unknown_config_file_keys=True,
@@ -273,46 +288,48 @@ class ExParser(ParserWithRoot):
         return absroot, relroot, name, time, num
 
     def parse_args(self, *args, **kwargs):
-        args = super().parse_args(*args, **kwargs)
-        if self.git_assert_clean and not args.git_dirty and self.repo.is_dirty():
-            raise RuntimeError("Repository is dirty, please commit changes")
-        self.set_additional_params(args)
-        self.validate_params(args)
-        absroot, relroot, name, time, num = self._initialize_dir(args.tmp)
-        args.root = absroot
-        yaml_params_path = args.root / PARAMS_FILE
-        rel_yaml_params_path = pathlib.Path("..", "runs", name, PARAMS_FILE)
-        self.dump_config(args, relroot, time, num, yaml_params_path)
-        if self.repo is not None and self.repo.is_dirty():
-            self.dump_git_diff(args.root / DIFF_FILE)
-        print(yaml_params_path.read_text())
-        created_symlinks = []
-        if not args.tmp:
-            symlink = self.index / yaml_file(name)
-            created_symlinks.append(symlink)
-            symlink.symlink_to(rel_yaml_params_path)
-            print("Created symlink from", symlink, "->", rel_yaml_params_path)
-        if self.automark and not args.tmp:
-            automark_path_part = pathlib.Path(
-                *itertools.chain.from_iterable(
-                    (mark, str(getattr(args, mark, ""))) for mark in self.automark
+        with umask_permissions(self.shared):
+            args = super().parse_args(*args, **kwargs)
+            if self.git_assert_clean and not args.git_dirty and self.repo.is_dirty():
+                raise RuntimeError("Repository is dirty, please commit changes")
+            self.set_additional_params(args)
+            self.validate_params(args)
+
+            absroot, relroot, name, time, num = self._initialize_dir(args.tmp)
+            args.root = absroot
+            yaml_params_path = args.root / PARAMS_FILE
+            rel_yaml_params_path = pathlib.Path("..", "runs", name, PARAMS_FILE)
+            self.dump_config(args, relroot, time, num, yaml_params_path)
+            if self.repo is not None and self.repo.is_dirty():
+                self.dump_git_diff(args.root / DIFF_FILE)
+            print(yaml_params_path.read_text())
+            created_symlinks = []
+            if not args.tmp:
+                symlink = self.index / yaml_file(name)
+                created_symlinks.append(symlink)
+                symlink.symlink_to(rel_yaml_params_path)
+                print("Created symlink from", symlink, "->", rel_yaml_params_path)
+            if self.automark and not args.tmp:
+                automark_path_part = pathlib.Path(
+                    *itertools.chain.from_iterable(
+                        (mark, str(getattr(args, mark, ""))) for mark in self.automark
+                    )
                 )
+                markpath = pathlib.Path(self.marked, automark_path_part)
+                markpath.mkdir(exist_ok=True, parents=True)
+                relpathmark = (
+                    pathlib.Path("..", *([".."] * len(automark_path_part.parts)))
+                    / "runs"
+                    / name
+                )
+                (markpath / name).symlink_to(relpathmark, target_is_directory=True)
+                created_symlinks.append(markpath / name)
+                print("Created symlink from", markpath / name, "->", relpathmark)
+            safe_experiment = SafeExperiment(
+                self.root, args.root, extra_symlinks=created_symlinks
             )
-            markpath = pathlib.Path(self.marked, automark_path_part)
-            markpath.mkdir(exist_ok=True, parents=True)
-            relpathmark = (
-                pathlib.Path("..", *([".."] * len(automark_path_part.parts)))
-                / "runs"
-                / name
-            )
-            (markpath / name).symlink_to(relpathmark, target_is_directory=True)
-            created_symlinks.append(markpath / name)
-            print("Created symlink from", markpath / name, "->", relpathmark)
-        safe_experiment = SafeExperiment(
-            self.root, args.root, extra_symlinks=created_symlinks
-        )
-        args.safe_experiment = safe_experiment
-        return args
+            args.safe_experiment = safe_experiment
+            return args
 
     def register_validator(
         self, validator: callable, message: str = "validation error"

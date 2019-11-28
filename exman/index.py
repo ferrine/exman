@@ -49,7 +49,7 @@ class Index(parser.ExmanDirectory):
     def __init__(self, root):
         super().__init__(root, mode="validate")
 
-    def info(self, source=None, *, njobs=-1):
+    def info(self, source=None, *, njobs=1):
         if source is None:
             source = self.index
             files = source.iterdir()
@@ -57,8 +57,10 @@ class Index(parser.ExmanDirectory):
             source = self.marked / source
             files = source.glob("**/*/" + parser.PARAMS_FILE)
 
+        yaml = configargparse.YAMLConfigFileParser()
+
         def get_dict(cfg):
-            return configargparse.YAMLConfigFileParser().parse(cfg.open("r"))
+            return yaml.parse(cfg.open("r"))
 
         def convert_column(col):
             if any(isinstance(v, str) for v in converter.convert_series(col)):
