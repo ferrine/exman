@@ -445,11 +445,12 @@ def _validate(validator: Validator, params: argparse.Namespace):
 
 
 class SafeExperiment(ExmanDirectory):
-    def __init__(self, root, run, extra_symlinks=(), prompt=False):
+    def __init__(self, root, run, extra_symlinks=(), prompt=False, default=True):
         super().__init__(root, mode="validate")
         self.run = run
         self.extra_symlinks = extra_symlinks
         self.prompt = prompt
+        self.default = default
 
     def __enter__(self):
         return self
@@ -458,11 +459,14 @@ class SafeExperiment(ExmanDirectory):
         if exc_type is not None:
             critical = not issubclass(exc_type, KeyboardInterrupt)
             if not critical and self.prompt:
+                default = {True: "yes", False: "no"}[self.default]
                 try:
-                    ans = inputimeout.inputimeout("move to fails? (no): ", 10)
+                    ans = inputimeout.inputimeout(
+                        "move to fails? ({}): ".format(default), 10
+                    )
                 except (inputimeout.TimeoutOccurred, termios_error):
-                    ans = "no"
-                critical = str2bool(ans, False)
+                    ans = default
+                critical = str2bool(ans, self.default)
             if critical:
                 shutil.move(self.run, self.fails / self.run.name)
                 for link in self.extra_symlinks:
@@ -476,6 +480,9 @@ class SafeExperiment(ExmanDirectory):
             print("\n".join(trace), file=sys.stdout)
             return not critical
 
-    def __call__(self, prompt=False):
-        self.prompt = prompt
+    def __call__(self, prompt=None, default=None):
+        if prompt is not None:
+            self.prompt = prompt
+        if default is not None:
+            self.default = default
         return self
