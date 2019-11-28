@@ -20,7 +20,7 @@ if __name__ == '__main__':
         description='Simple and minimalistic utility to manage many '
                     'experiments runs and custom analysis of results',
         long_description=open('README.rst').read(),
-        python_requires='>=3.5',
+        python_requires='>=3.6',
         author='Max Kochurov',
         scripts=['bin/exman'],
         author_email='maxim.v.kochurov@gmail.com',
