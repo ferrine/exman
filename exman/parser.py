@@ -444,10 +444,16 @@ class SafeExperiment(ExmanDirectory):
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         if exc_type is not None:
-            shutil.move(self.run, self.fails / self.run.name)
-            for link in self.extra_symlinks:
-                os.unlink(link)
+            critical = not issubclass(exc_type, KeyboardInterrupt)
+            if critical:
+                shutil.move(self.run, self.fails / self.run.name)
+                for link in self.extra_symlinks:
+                    os.unlink(link)
+                tracefile = self.fails / self.run.name / "traceback.txt"
+            else:
+                tracefile = self.run / "traceback.txt"
             trace = traceback.format_exception(exc_type, exc_val, exc_tb)
-            with (self.fails / self.run.name / "traceback.txt").open("w") as f:
+            with tracefile.open("w") as f:
                 f.writelines(trace)
             print("\n".join(trace), file=sys.stdout)
+            return not critical

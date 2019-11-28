@@ -127,6 +127,32 @@ def test_safe_experiment_tmp(root, capsys):
     )
 
 
+def test_safe_experiment_keyboard_interrupt(root, capsys):
+    parser = exman.ExParser(root=root)
+    args = parser.parse_args([])
+    with args.safe_experiment:
+        raise KeyboardInterrupt("funny exception")
+    assert "KeyboardInterrupt" in str(capsys.readouterr()[0])
+    assert (parser.index / exman.parser.yaml_file(args.root.name)).exists()
+    assert args.root.exists()
+    assert not (parser.fails / args.root.name).exists()
+    assert not (parser.fails / args.root.name / "traceback.txt").exists()
+    assert "funny exception" in (args.root / "traceback.txt").read_text()
+
+
+def test_safe_experiment_tmp_keyboard_interrupt(root, capsys):
+    parser = exman.ExParser(root=root)
+    args = parser.parse_args(["--tmp"])
+    with args.safe_experiment:
+        raise KeyboardInterrupt("funny exception")
+    assert "KeyboardInterrupt" in str(capsys.readouterr()[0])
+    assert not (parser.index / exman.parser.yaml_file(args.root.name)).exists()
+    assert args.root.exists()
+    assert not (parser.fails / args.root.name).exists()
+    assert not (parser.fails / args.root.name / "traceback.txt").exists()
+    assert "funny exception" in (args.root / "traceback.txt").read_text()
+
+
 def test_setters(root):
     parser = exman.ExParser(root=root)
     parser.register_setter(lambda p: p.__dict__.update(arg1=1))
