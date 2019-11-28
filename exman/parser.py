@@ -462,7 +462,7 @@ class SafeExperiment(ExmanDirectory):
                 default = {True: "yes", False: "no"}[self.default]
                 try:
                     ans = inputimeout.inputimeout(
-                        "move to fails? ({}): ".format(default), 10
+                        "\nmove to fails? ({}): ".format(default), 10
                     )
                 except (inputimeout.TimeoutOccurred, termios_error):
                     ans = default
