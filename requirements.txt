@@ -3,5 +3,6 @@ PyYAML
 strconv
 pandas
 filelock
+inputimeout
 joblib
 gitpython

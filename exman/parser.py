@@ -5,6 +5,7 @@ import datetime
 import yaml
 import yaml.representer
 import os
+import inputimeout
 import sys
 import re
 import functools
@@ -15,6 +16,13 @@ import traceback
 import contextlib
 import git as gitlib
 from filelock import FileLock
+
+try:
+    # happens in an interactive session
+    from termios import error as termios_error
+except ImportError:
+    termios_error = inputimeout.TimeoutOccurred
+
 
 __all__ = ["ExParser", "simpleroot", "optional", "ArgumentError"]
 
@@ -64,7 +72,7 @@ def umask_permissions(active=False):
         yield
 
 
-def str2bool(s):
+def str2bool(s, default=None):
     true = ("true", "t", "yes", "y", "on", "1")
     false = ("false", "f", "no", "n", "off", "0")
 
@@ -73,9 +81,12 @@ def str2bool(s):
     elif s.lower() in false:
         return False
     else:
-        raise argparse.ArgumentTypeError(
-            s, "bool argument should be one of {}".format(str(true + false))
-        )
+        if default is None:
+            raise argparse.ArgumentTypeError(
+                s, "bool argument should be one of {}".format(str(true + false))
+            )
+        else:
+            return default
 
 
 def optional(t):
@@ -434,20 +445,44 @@ def _validate(validator: Validator, params: argparse.Namespace):
 
 
 class SafeExperiment(ExmanDirectory):
-    def __init__(self, root, run, extra_symlinks=()):
+    def __init__(self, root, run, extra_symlinks=(), prompt=False, default=True):
         super().__init__(root, mode="validate")
         self.run = run
         self.extra_symlinks = extra_symlinks
+        self.prompt = prompt
+        self.default = default
 
     def __enter__(self):
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         if exc_type is not None:
-            shutil.move(self.run, self.fails / self.run.name)
-            for link in self.extra_symlinks:
-                os.unlink(link)
+            critical = not issubclass(exc_type, KeyboardInterrupt)
+            if not critical and self.prompt:
+                default = {True: "yes", False: "no"}[self.default]
+                try:
+                    ans = inputimeout.inputimeout(
+                        "\nmove to fails? ({}): ".format(default), 10
+                    )
+                except (inputimeout.TimeoutOccurred, termios_error, KeyboardInterrupt):
+                    ans = default
+                critical = str2bool(ans, self.default)
+            if critical:
+                shutil.move(self.run, self.fails / self.run.name)
+                for link in self.extra_symlinks:
+                    os.unlink(link)
+                tracefile = self.fails / self.run.name / "traceback.txt"
+            else:
+                tracefile = self.run / "traceback.txt"
             trace = traceback.format_exception(exc_type, exc_val, exc_tb)
-            with (self.fails / self.run.name / "traceback.txt").open("w") as f:
+            with tracefile.open("w") as f:
                 f.writelines(trace)
             print("\n".join(trace), file=sys.stdout)
+            return not critical
+
+    def __call__(self, *, prompt=None, default=None):
+        if prompt is not None:
+            self.prompt = prompt
+        if default is not None:
+            self.default = default
+        return self
