@@ -21,7 +21,7 @@ __all__ = ["ExParser", "simpleroot", "optional", "ArgumentError"]
 TIME_FORMAT_DIR = "%Y-%m-%d-%H-%M-%S"
 TIME_FORMAT = "%Y-%m-%dT%H:%M:%S"
 DIR_FORMAT = "{num}-{time}"
-DIR_PATTERN = re.compile(r"^\d+-\d{4}-\d{2}-\d{2}-\d{2}-\d{2}-\d{2}$")
+DIR_PATTERN = re.compile(r"^\d+-\d{4}-\d{2}-\d{2}-\d{2}-\d{2}-\d{2}")
 EXT = "yaml"
 PARAMS_FILE = "params." + EXT
 DIFF_FILE = "changes.diff"
@@ -87,6 +87,16 @@ def optional(t):
     return converter
 
 
+_ExperimentDirectory = collections.namedtuple(
+    "ExperimentDirectory", "absroot, relroot, name, time, num, shared"
+)
+
+
+class ExperimentDirectory(_ExperimentDirectory):
+    def permissions_context(self):
+        return umask_permissions(self.shared)
+
+
 class ExmanDirectory(object):
     RESERVED_DIRECTORIES = {"runs", "index", "tmp", "marked", "fails"}
 
@@ -117,6 +127,9 @@ class ExmanDirectory(object):
 
             self.lock = FileLock(str(self.root / "lock"))
             self.shared = shared
+
+    def permissions_context(self):
+        return umask_permissions(self.shared)
 
     @property
     def fails(self):
@@ -161,6 +174,28 @@ class ExmanDirectory(object):
 
     def next_ex_str(self):
         return str(self.next_ex()).zfill(self.zfill)
+
+    def new_directory(self, tmp=False, tag=""):
+        try:
+            with self.lock, self.permissions_context():
+                # different processes can make it same time, this is needed to avoid collision
+                time = datetime.datetime.now()
+                num = self.next_ex_str()
+                name = DIR_FORMAT.format(num=num, time=time.strftime(TIME_FORMAT_DIR))
+                if tag:
+                    name = name + "-" + str(tag)
+                if tmp:
+                    absroot = self.tmp / name
+                    relroot = pathlib.Path("tmp") / name
+                else:
+                    absroot = self.runs / name
+                    relroot = pathlib.Path("runs") / name
+                # this process now safely owns root directory
+                # raises FileExistsError on fail
+                absroot.mkdir()
+        except FileExistsError:  # shit still happens
+            return self.new_directory(tmp, tag)
+        return ExperimentDirectory(absroot, relroot, name, time, num, self.shared)
 
 
 class VolatileAwareParser(object):
@@ -247,6 +282,10 @@ class ExParser(ParserWithRoot):
             action="store_true",
             help="Force run experiment not asserting it is clean",
         )
+        self.add_argument(
+            "--name",
+            help="Name for the experiment, will appear as suffix to a directory",
+        )
 
     def _init_git(self, git, git_assert_clean):
         if git is not None or git_assert_clean:
@@ -268,25 +307,6 @@ class ExParser(ParserWithRoot):
             self.repo = None
             self.git_assert_clean = False
 
-    def _initialize_dir(self, tmp):
-        try:
-            with self.lock:  # different processes can make it same time, this is needed to avoid collision
-                time = datetime.datetime.now()
-                num = self.next_ex_str()
-                name = DIR_FORMAT.format(num=num, time=time.strftime(TIME_FORMAT_DIR))
-                if tmp:
-                    absroot = self.tmp / name
-                    relroot = pathlib.Path("tmp") / name
-                else:
-                    absroot = self.runs / name
-                    relroot = pathlib.Path("runs") / name
-                # this process now safely owns root directory
-                # raises FileExistsError on fail
-                absroot.mkdir()
-        except FileExistsError:  # shit still happens
-            return self._initialize_dir(tmp)
-        return absroot, relroot, name, time, num
-
     def parse_args(self, *args, **kwargs):
         with umask_permissions(self.shared):
             args = super().parse_args(*args, **kwargs)
@@ -295,7 +315,9 @@ class ExParser(ParserWithRoot):
             self.set_additional_params(args)
             self.validate_params(args)
 
-            absroot, relroot, name, time, num = self._initialize_dir(args.tmp)
+            absroot, relroot, name, time, num, _ = self.new_directory(
+                args.tmp, args.name
+            )
             args.root = absroot
             yaml_params_path = args.root / PARAMS_FILE
             rel_yaml_params_path = pathlib.Path("..", "runs", name, PARAMS_FILE)

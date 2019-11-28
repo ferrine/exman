@@ -15,6 +15,17 @@ def test_dirs(parser: exman.ExParser):
     assert (parser.index / exman.parser.yaml_file(args.root.name)).exists()
 
 
+def test_named_dirs(parser: exman.ExParser):
+    args = parser.parse_args(["--name", "foo"])
+    assert args.root.exists()
+    assert args.root.name.startswith("1".zfill(parser.zfill) + "-")
+    assert args.root.name.endswith("foo")
+    args = parser.parse_args(["--name", "bar"])
+    assert args.root.exists()
+    assert args.root.name.startswith("2".zfill(parser.zfill) + "-")
+    assert args.root.name.endswith("bar")
+
+
 def test_num(parser: exman.ExParser):
     assert parser.num_ex() == 0
     assert parser.next_ex() == 1
