@@ -444,6 +444,25 @@ def _validate(validator: Validator, params: argparse.Namespace):
             )
 
 
+class _TeeOutput(object):
+    def __init__(self, stream, out):
+        self.out = pathlib.Path(out)
+        self.stream = stream
+
+    def write(self, buffer):
+        with self.out.open('a') as f:
+            f.write(buffer)
+            f.flush()
+        self.stream.write(buffer)
+        self.flush()
+
+    def flush(self):
+        self.stream.flush()
+
+    def close(self):
+        pass
+
+
 class SafeExperiment(ExmanDirectory):
     def __init__(self, root, run, extra_symlinks=(), prompt=False, default=True):
         super().__init__(root, mode="validate")
@@ -453,7 +472,7 @@ class SafeExperiment(ExmanDirectory):
         self.default = default
 
     def __enter__(self):
-        self.stdout = open(self.run / "log.txt", "a")
+        self.stdout = _TeeOutput(sys.stdout, self.run / "log.txt")
         self.redirect = contextlib.redirect_stdout(self.stdout)
         self.redirect.__enter__()
         return self
