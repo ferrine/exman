@@ -202,3 +202,11 @@ def test_dest(root):
     params = args1.root / exman.parser.yaml_file("params")
     args2 = parser.parse_args("--config {}".format(params).split())
     assert args2.arg2 == 2
+
+
+def test_redirect(root):
+    parser = exman.ExParser(root=root)
+    args = parser.parse_args(["--tmp"])
+    with args.safe_experiment:
+        print("hello")
+    assert "hello" in (args.root / "log.txt").read_text()

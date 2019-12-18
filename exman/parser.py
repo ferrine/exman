@@ -13,9 +13,9 @@ import itertools
 import collections
 import shutil
 import traceback
-import contextlib
 import git as gitlib
 from filelock import FileLock
+import contextlib
 
 try:
     # happens in an interactive session
@@ -453,9 +453,14 @@ class SafeExperiment(ExmanDirectory):
         self.default = default
 
     def __enter__(self):
+        self.stdout = open(self.run / "log.txt", "a")
+        self.redirect = contextlib.redirect_stdout(self.stdout)
+        self.redirect.__enter__()
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
+        self.redirect.__exit__(exc_type, exc_val, exc_tb)
+        self.stdout.close()
         if exc_type is not None:
             critical = not issubclass(exc_type, KeyboardInterrupt)
             if not critical and self.prompt:
