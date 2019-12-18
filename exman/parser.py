@@ -450,7 +450,7 @@ class _TeeOutput(object):
         self.stream = stream
 
     def write(self, buffer):
-        with self.out.open('a') as f:
+        with self.out.open("a") as f:
             f.write(buffer)
             f.flush()
         self.stream.write(buffer)
