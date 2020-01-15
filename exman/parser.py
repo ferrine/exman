@@ -72,6 +72,15 @@ def umask_permissions(active=False):
         yield
 
 
+@contextlib.contextmanager
+def activate_lock(lock, active=True):
+    if active:
+        with lock:
+            yield
+    else:
+        yield
+
+
 def str2bool(s, default=None):
     true = ("true", "t", "yes", "y", "on", "1")
     false = ("false", "f", "no", "n", "off", "0")
@@ -187,9 +196,9 @@ class ExmanDirectory(object):
     def next_ex_str(self):
         return str(self.next_ex()).zfill(self.zfill)
 
-    def new_directory(self, tmp=False, tag=""):
+    def new_directory(self, tmp=False, tag="", lock=True):
         try:
-            with self.lock, self.permissions_context():
+            with activate_lock(self.lock, active=lock), self.permissions_context():
                 # different processes can make it same time, this is needed to avoid collision
                 time = datetime.datetime.now()
                 num = self.next_ex_str()
@@ -206,7 +215,7 @@ class ExmanDirectory(object):
                 # raises FileExistsError on fail
                 absroot.mkdir()
         except FileExistsError:  # shit still happens
-            return self.new_directory(tmp, tag)
+            return self.new_directory(tmp, tag, lock)
         return ExperimentDirectory(absroot, relroot, name, time, num, self.shared)
 
 
@@ -267,6 +276,7 @@ class ExParser(ParserWithRoot):
         automark=(),
         git=None,
         git_assert_clean=False,
+        lock=True,
         **kwargs
     ):
         self._volatile = set()
@@ -298,6 +308,12 @@ class ExParser(ParserWithRoot):
             "--name",
             help="Name for the experiment, will appear as suffix to a directory",
         )
+        self.add_argument(
+            "--lock",
+            type=bool,
+            help="Use lock for creating a directory (true is recommended)",
+            default=lock,
+        )
 
     def _init_git(self, git, git_assert_clean):
         if git is not None or git_assert_clean:
@@ -328,7 +344,7 @@ class ExParser(ParserWithRoot):
             self.validate_params(args)
 
             absroot, relroot, name, time, num, _ = self.new_directory(
-                args.tmp, args.name
+                args.tmp, args.name, args.lock
             )
             args.root = absroot
             yaml_params_path = args.root / PARAMS_FILE
